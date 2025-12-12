@@ -7,6 +7,9 @@ st.set_page_config(page_title="Sales Call Prep – US Mortgage Coach", layout="w
 st.title("💬 Sales Call Preparation – US Mortgage Coach")
 st.caption("One refinance lead at a time. Short RM notes in, clear next questions out.")
 
+# hard-coded minimum rate the RM must not go below
+RATE_FLOOR = 6.0  # percent
+
 # ---------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------
@@ -33,7 +36,6 @@ if "lead" not in st.session_state:
         "big_goal": None,
     }
 
-# keep track of which question topics were already asked, so we can avoid repetition
 if "asked_topics" not in st.session_state:
     st.session_state.asked_topics = set()
 
@@ -54,14 +56,15 @@ if not st.session_state.messages:
     intro = (
         "Good day. This assistant helps you prepare for a **US mortgage refinance** call.\n\n"
         "Tell me who you are calling and that it is a refi, for example:\n"
-        "`John Doe in Texas, refinance on his current mortgage`.\n\n"
-        "As you learn facts, just drop in short notes like `rate 9.5 pay 5200`, "
-        "`bal 320k term 24 yrs`, `dep 120k surplus 4k travel 2.5k`, "
-        "`offer 8.4 competitor 8.7 fee conscious`. Type **summary** any time for a call plan."
+        "`Mary Smith in California, refi on primary home`.\n\n"
+        "As you learn facts, drop in short notes like `rate 7.8 pay 3100`, "
+        "`bal 410k term 19 yrs`, `dep 65k surplus 1800 travel 900`, "
+        "`offer 6.9 competitor 7.1 fee conscious`. Type **summary** any time for a call plan.\n\n"
+        ":red[Note: internal rate floor is **6.00%**. Do not position offers below this.]"
     )
     add_message("assistant", intro)
     with st.chat_message("assistant"):
-        st.markdown(intro)
+        st.markmarkdown = st.markdown(intro)
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -118,7 +121,7 @@ def update_lead_from_free_text(text: str):
             lead["objective"] = "refinance existing mortgage and improve cash flow"
     if any(w in low for w in ["fees", "pricing", "closing costs", "points", "fee conscious", "fee sensitive"]):
         lead["pricing_concern"] = True
-    if any(w in low for w in ["college", "education", "tuition", "daughter"]):
+    if any(w in low for w in ["college", "education", "tuition", "daughter", "son"]):
         lead["big_goal"] = "college / education funding"
 
 
@@ -280,7 +283,7 @@ def build_guidance(text: str) -> str:
             all_questions.append(("goal_importance",
                 "How important is it that the refinance structure directly supports that goal?"))
 
-    else:  # stage 5 – closing
+    else:
         if "ready_to_move" not in asked:
             all_questions.append(("ready_to_move",
                 "If the numbers look good, are you comfortable moving forward with the refinance today?"))
@@ -297,13 +300,11 @@ def build_guidance(text: str) -> str:
             all_questions.append(("delivery_pref",
                 "What is the best way for me to send you the final numbers and next steps?"))
 
-    # mark these topics as asked
     for topic, _ in all_questions:
         asked.add(topic)
 
-    # highlight first 2 as "most important"
     lines.append(f"**Ask {name}{state} now:**")
-    for i, (topic, q) in enumerate(all_questions[:5], start=1):
+    for i, (_, q) in enumerate(all_questions[:5], start=1):
         if i <= 2:
             lines.append(f"{i}. **\"{q}\"**")
         else:
@@ -326,7 +327,13 @@ def build_guidance(text: str) -> str:
         yrs_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
         snapshot.append(f"- Remaining balance: **{bal_txt}**, {yrs_txt}.")
     if lead["our_rate"] is not None:
-        snapshot.append(f"- Your working offer: **{lead['our_rate']:.2f}%** (subject to approval).")
+        rate_txt = f"{lead['our_rate']:.2f}%"
+        if lead["our_rate"] < RATE_FLOOR:
+            snapshot.append(f"- :red[Working offer {rate_txt} is **below** floor {RATE_FLOOR:.2f}%. Do **not** go this low.]")
+        else:
+            snapshot.append(f"- Your working offer: **{rate_txt}** (subject to approval).")
+    else:
+        snapshot.append(f"- Pricing guardrail: :red[do not quote below **{RATE_FLOOR:.2f}%**].")
     if lead["competitor_rate"] is not None:
         snapshot.append(f"- Competitor mentioned: ~**{lead['competitor_rate']:.2f}%**.")
     if lead["savings_balance"] is not None:
@@ -338,7 +345,7 @@ def build_guidance(text: str) -> str:
     if lead["pricing_concern"]:
         snapshot.append("- Customer is **rate‑ and fee‑sensitive**.")
     if lead["big_goal"]:
-        snapshot.append("- Long‑term goal discussed: **college / education in ~3 years**.")
+        snapshot.append("- Long‑term goal discussed: **college / education in ~3–4 years**.")
 
     if not snapshot:
         snapshot.append("- Key numbers not captured yet.")
@@ -353,7 +360,7 @@ def build_guidance(text: str) -> str:
         need.append("deposits and typical monthly surplus.")
     if lead["pricing_concern"] and (lead["our_rate"] is None or lead["competitor_rate"] is None):
         need.append("your working offer rate and any competitor quote.")
-    if lead["big_goal"] is None and stage >= 3:
+    if lead["big_goal"] is None and infer_stage(lead) >= 3:
         need.append("any major life goals (college, renovation, etc.).")
 
     if need:
@@ -390,7 +397,13 @@ def build_summary() -> str:
         )
         parts.append(f"- Remaining balance: **${lead['remaining_balance']:.0f}**, {term_txt}.")
     if lead["our_rate"] is not None:
-        parts.append(f"- Working offer: **{lead['our_rate']:.2f}%** (subject to underwriting).")
+        txt = f"{lead['our_rate']:.2f}%"
+        if lead["our_rate"] < RATE_FLOOR:
+            parts.append(f"- :red[Offer {txt} is **below** internal floor **{RATE_FLOOR:.2f}%**. Adjust pricing upward before quoting.]")
+        else:
+            parts.append(f"- Working offer: **{txt}** (subject to underwriting).")
+    else:
+        parts.append(f"- Pricing guardrail: :red[do not go below **{RATE_FLOOR:.2f}%** on rate.]")
     if lead["competitor_rate"] is not None:
         parts.append(f"- Competitor in play: ~**{lead['competitor_rate']:.2f}%**.")
     if lead["savings_balance"] is not None:
@@ -402,40 +415,43 @@ def build_summary() -> str:
     if lead["pricing_concern"]:
         parts.append("- Borrower is strongly **price‑ and fee‑sensitive**; structure and cash to close matter.")
     if lead["big_goal"]:
-        parts.append("- Stated goal: **college / education saving in ~3 years**, wants liquidity with some growth.")
+        parts.append("- Stated goal: **college / education saving in the next few years**, wants liquidity with some growth.")
     if lead["objective"]:
         parts.append(f"- Your internal goal: **{lead['objective']}**.")
 
-    # Additional insight, not just restating facts
     parts.append("")
     parts.append("**Key insights**")
-    if lead["current_rate"] and lead["our_rate"]:
+    if lead["current_rate"] and lead["our_rate"] and lead["our_rate"] >= RATE_FLOOR:
         rate_delta = lead["current_rate"] - lead["our_rate"]
         if rate_delta > 0:
-            parts.append(f"- You have roughly a **{rate_delta:.2f}% rate improvement** to work with; focus on what that does to payment and interest over the first 5–7 years.")
+            parts.append(
+                f"- You have roughly a **{rate_delta:.2f}% rate improvement** above floor {RATE_FLOOR:.2f}%. "
+                "Focus on what that does to payment and interest over the first 5–7 years."
+            )
     if lead["monthly_surplus"]:
-        parts.append("- There is meaningful surplus each month; positioning an automatic transfer into a college bucket will feel concrete, not theoretical.")
+        parts.append("- Surplus each month allows you to propose an automatic transfer into a goal bucket without stressing cash flow.")
     if lead["pricing_concern"]:
-        parts.append("- A clean, line‑by‑line closing cost explanation will likely matter more than a small extra rate discount.")
+        parts.append("- A transparent fee breakdown and breakeven view will matter more than chasing tiny extra rate cuts.")
     if lead["travel_spend"]:
-        parts.append("- Card spend is large enough that a targeted rewards card can be a natural second step once the refi is agreed.")
+        parts.append("- Card spend is large enough that a targeted rewards card can be a natural follow‑up once the refi is agreed.")
 
     parts.append("")
     parts.append("**How to steer the call**")
-    parts.append("- Start by confirming remaining term, stay‑in‑home horizon, and any last concerns on payment comfort.")
-    parts.append("- Walk through a simple comparison: today vs your offer vs competitor (payment, APR, cash to close, rough breakeven).")
-    parts.append("- Tie the monthly savings to a specific college‑fund contribution from part of the surplus.")
+    parts.append("- Confirm remaining term, stay‑in‑home horizon, and payment comfort one more time.")
+    parts.append("- Present side‑by‑side: today vs your offer vs competitor (payment, APR, cash to close, breakeven years).")
+    parts.append("- Tie savings from the refi to a specific monthly amount into their college or remodel fund.")
     if lead["travel_spend"] is not None:
-        parts.append("- Offer to review card options only after the refi decision, so the main conversation stays focused.")
-    parts.append("- End with clear next steps: documents list, expected timeline / rate‑lock, and how you will deliver final numbers.")
+        parts.append("- Offer to review card options only after they are comfortable with the refinance numbers.")
+    parts.append("- Finish with a clear checklist of documents, rate‑lock expectations, and how/when you will send final numbers.")
 
     return "\n".join(parts)
+
 
 # ---------------------------------------------------------------------
 # Chat input
 # ---------------------------------------------------------------------
 user_msg = st.chat_input(
-    "Short notes only (e.g., 'John Doe TX refi', 'rate 9.5 pay 5200', 'bal 320k term 24 yrs', or 'summary')..."
+    "Short notes only (e.g., 'Mary Smith CA refi', 'rate 7.8 pay 3100', 'bal 410k term 19 yrs', or 'summary')..."
 )
 
 if user_msg:
