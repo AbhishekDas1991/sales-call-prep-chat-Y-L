@@ -32,8 +32,10 @@ if "lead" not in st.session_state:
         "big_goal": None,  # e.g., college in 3 years
     }
 
+
 def add_message(role, content):
     st.session_state.messages.append({"role": role, "content": content})
+
 
 # ---------------------------------------------------------------------
 # Display history
@@ -73,12 +75,14 @@ def parse_us_number(token: str) -> float | None:
         val *= 1000.0
     return val
 
+
 def extract_name(text: str) -> str | None:
     m = re.search(
         r"\b(call(?:ing)?|speaking to|talking to|meeting|meeting with|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
         text,
     )
     return m.group(2) if m else None
+
 
 def detect_segment(text: str) -> str | None:
     t = text.lower()
@@ -91,6 +95,7 @@ def detect_segment(text: str) -> str | None:
     if "salary" in t or "w2" in t:
         return "Salaried"
     return None
+
 
 def update_lead_from_free_text(text: str):
     lead = st.session_state.lead
@@ -114,6 +119,7 @@ def update_lead_from_free_text(text: str):
         lead["pricing_concern"] = True
     if any(w in low for w in ["college", "education", "tuition"]):
         lead["big_goal"] = "college / education funding"
+
 
 def parse_structured_short_input(text: str):
     lead = st.session_state.lead
@@ -174,6 +180,7 @@ def parse_structured_short_input(text: str):
         if r:
             lead["competitor_rate"] = r
 
+
 # ---------------------------------------------------------------------
 # Guidance builder
 # ---------------------------------------------------------------------
@@ -189,36 +196,36 @@ def build_guidance(text: str) -> str:
     # 1) Ask the borrower now – always on top
     lines.append(f"**Ask {name}{state} now:**")
 
-    # Q1: balance / term / stay duration
     if not lead["remaining_balance"]:
         lines.append("1. “About how much do you still **owe on the loan**, and how many years are left?”")
     else:
         lines.append("1. “Do you plan to **stay in this home** for most of the remaining term, or might you move sooner?”")
 
-    # Q2: payment comfort
     if lead["current_payment"]:
         lines.append("2. “Does your current monthly payment feel **comfortable**, or does it put pressure on your budget?”")
     else:
         lines.append("2. “What is your **exact monthly mortgage payment** today (principal and interest)?”")
 
-    # Q3: comfortable range
     lines.append("3. “If we refinance, what would a **comfortable payment range** look like for you each month?”")
 
-    # Q4: surplus / goals
     if lead["monthly_surplus"]:
-        lines.append("4. “From what is left over each month, how much would you be comfortable directing toward **savings or goals**?”")
+        lines.append(
+            "4. “From what is left over each month, how much would you be comfortable directing toward "
+            "**savings or goals**?”"
+        )
     else:
         lines.append("4. “After mortgage and other bills, roughly how much **cash is left over** in a typical month?”")
 
-    # Q5: pricing / card / goals nuance
     if lead["travel_spend"]:
-        lines.append("5. “On your primary credit card, what matters more to you – **rewards, travel perks, or a lower annual fee**?”")
+        lines.append(
+            "5. “On your primary credit card, what matters more to you – **rewards, travel perks, or a lower annual fee**?”"
+        )
     elif lead["pricing_concern"]:
         lines.append("5. “When you think about **fees and closing costs**, which items concern you the most?”")
     else:
         lines.append("5. “Apart from the **interest rate**, what else will drive your decision on this refinance?”")
 
-    # 2) Snapshot so far – shorter, below the questions
+    # 2) Snapshot so far
     lines.append("")
     lines.append(f"**Snapshot so far – {name}{state}:**")
     snapshot = []
@@ -251,7 +258,7 @@ def build_guidance(text: str) -> str:
 
     lines.extend(snapshot)
 
-    # 3) Internal notes for the RM – what still to capture (no sample commands)
+    # 3) Internal checklist
     need = []
     if lead["tenure_years"] is None:
         need.append("tenure with your bank (years).")
@@ -277,6 +284,7 @@ def build_guidance(text: str) -> str:
 
     return "\n".join(lines)
 
+
 # ---------------------------------------------------------------------
 # Summary builder
 # ---------------------------------------------------------------------
@@ -294,7 +302,9 @@ def build_summary() -> str:
         pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured"
         parts.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
     if lead["remaining_balance"]:
-        term_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
+        term_txt = (
+            f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
+        )
         parts.append(f"- Remaining balance: **${lead['remaining_balance']:.0f}**, {term_txt}.")
     if lead["our_rate"]:
         parts.append(f"- Target rate to position: **{lead['our_rate']:.2f}%** (subject to underwriting).")
@@ -319,8 +329,12 @@ def build_summary() -> str:
     parts.append("- Present a simple comparison: current loan vs your offer vs any competitor (payment, APR, cash to close).")
     parts.append("- Link refinance savings to their goals (monthly comfort and college savings plan).")
     if lead["travel_spend"]:
-        parts.append("- Decide whether to align their travel spend with a more suitable rewards card now or at a follow‑up.")
-    parts.append("- Close with clear next steps: documents needed, rate‑lock / timeline expectations, and how you will send final numbers.")
+        parts.append(
+            "- Decide whether to align their travel spend with a more suitable rewards card now or at a follow‑up."
+        )
+    parts.append(
+        "- Close with clear next steps: documents needed, rate‑lock / timeline expectations, and how you will send final numbers."
+    )
 
     return "\n".join(parts)
 
@@ -328,26 +342,28 @@ def build_summary() -> str:
 # ---------------------------------------------------------------------
 # Chat input
 # ---------------------------------------------------------------------
-user_msg = st.chat_input(\"Describe the customer, paste numbers, or type 'summary' for the call plan...\")
+user_msg = st.chat_input(
+    "Describe the customer, paste numbers, or type 'summary' for the call plan..."
+)
 
 if user_msg:
-    add_message(\"user\", user_msg)
-    with st.chat_message(\"user\"):
+    add_message("user", user_msg)
+    with st.chat_message("user"):
         st.markdown(user_msg)
 
     lower = user_msg.strip().lower()
 
-    if \"summary\" in lower:
-        with st.chat_message(\"assistant\"):
-            with st.spinner(\"Preparing a concise call plan...\"):
+    if "summary" in lower:
+        with st.chat_message("assistant"):
+            with st.spinner("Preparing a concise call plan..."):
                 time.sleep(1.0)
                 reply = build_summary()
             st.markdown(reply)
-        add_message(\"assistant\", reply)
+        add_message("assistant", reply)
     else:
-        with st.chat_message(\"assistant\"):
-            with st.spinner(\"Reviewing details and shaping next questions...\"):
+        with st.chat_message("assistant"):
+            with st.spinner("Reviewing details and shaping next questions..."):
                 time.sleep(1.0)
                 reply = build_guidance(user_msg)
             st.markdown(reply)
-        add_message(\"assistant\", reply)
+        add_message("assistant", reply)
