@@ -291,37 +291,39 @@ def build_summary() -> str:
     if lead["tenure_years"]:
         parts.append(f"- Relationship with bank: **{lead['tenure_years']:.0f} years**.")
     if lead["current_rate"]:
-        pay_txt = f\"${lead['current_payment']:.0f}/mo\" if lead[\"current_payment\"] else \"payment not captured\"
-        parts.append(f\"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.\")
+        pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured"
+        parts.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
     if lead["remaining_balance"]:
-        term_txt = f\"{lead['remaining_term_years']:.0f} yrs left\" if lead[\"remaining_term_years\"] else \"term not captured\"
-        parts.append(f\"- Remaining balance: **${lead['remaining_balance']:.0f}**, {term_txt}.\")
+        term_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
+        parts.append(f"- Remaining balance: **${lead['remaining_balance']:.0f}**, {term_txt}.")
     if lead["our_rate"]:
-        parts.append(f\"- Target rate to position: **{lead['our_rate']:.2f}%** (subject to underwriting).\")
+        parts.append(f"- Target rate to position: **{lead['our_rate']:.2f}%** (subject to underwriting).")
     if lead["competitor_rate"]:
-        parts.append(f\"- Competitor offer in discussion: ~**{lead['competitor_rate']:.2f}%**.\")
+        parts.append(f"- Competitor offer in discussion: ~**{lead['competitor_rate']:.2f}%**.")
     if lead["savings_balance"]:
-        parts.append(f\"- Deposits with your bank: ~**${lead['savings_balance']:.0f}**.\")
+        parts.append(f"- Deposits with your bank: ~**${lead['savings_balance']:.0f}**.")
     if lead["monthly_surplus"]:
-        parts.append(f\"- Estimated monthly surplus after bills: ~**${lead['monthly_surplus']:.0f}**.\")
+        parts.append(f"- Estimated monthly surplus after bills: ~**${lead['monthly_surplus']:.0f}**.")
     if lead["travel_spend"]:
-        parts.append(f\"- Travel / discretionary card spend: ~**${lead['travel_spend']:.0f}/mo**.\")
+        parts.append(f"- Travel / discretionary card spend: ~**${lead['travel_spend']:.0f}/mo**.")
     if lead["pricing_concern"]:
-        parts.append(\"- Customer is **rate‑ and fee‑sensitive**; APR and closing costs will drive the decision.\")
+        parts.append("- Customer is **rate‑ and fee‑sensitive**; APR and closing costs will drive the decision.")
     if lead["big_goal"]:
-        parts.append(\"- Long‑term goal: **college / education saving in ~3 years**.\")
+        parts.append("- Long‑term goal: **college / education saving in ~3 years**.")
     if lead["objective"]:
-        parts.append(f\"- Your stated objective: **{lead['objective']}**.\")
+        parts.append(f"- Your stated objective: **{lead['objective']}**.")
 
-    parts.append(\"\\n**Recommended focus for this call**\")
-    parts.append(\"- Confirm remaining term, remaining balance, and how long they expect to stay in the property.\")
-    parts.append(\"- Present a simple comparison: current loan vs your offer vs any competitor (payment, APR, cash to close).\")
-    parts.append(\"- Link refinance savings to their goals (monthly comfort and college savings plan).\")
+    parts.append("")
+    parts.append("**Recommended focus for this call**")
+    parts.append("- Confirm remaining term, remaining balance, and how long they expect to stay in the property.")
+    parts.append("- Present a simple comparison: current loan vs your offer vs any competitor (payment, APR, cash to close).")
+    parts.append("- Link refinance savings to their goals (monthly comfort and college savings plan).")
     if lead["travel_spend"]:
-        parts.append(\"- Decide whether to align their travel spend with a more suitable rewards card now or at a follow‑up.\")
-    parts.append(\"- Close with clear next steps: documents needed, rate‑lock / timeline expectations, and how you will send final numbers.\")
+        parts.append("- Decide whether to align their travel spend with a more suitable rewards card now or at a follow‑up.")
+    parts.append("- Close with clear next steps: documents needed, rate‑lock / timeline expectations, and how you will send final numbers.")
 
-    return \"\\n\".join(parts)
+    return "\n".join(parts)
+
 
 # ---------------------------------------------------------------------
 # Chat input
