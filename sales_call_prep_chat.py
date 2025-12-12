@@ -2,20 +2,31 @@ import time
 import re
 import streamlit as st
 
-st.set_page_config(page_title="Sales Call Prep – Chat Agent", layout="wide")
+st.set_page_config(page_title="Sales Call Prep – Detailed Lead Coach", layout="wide")
 
-st.title("💬 Sales Call Preparation – Chat Agent")
-st.caption("Question-focused coaching plus a final call summary when you ask for it.")
+st.title("💬 Sales Call Preparation – Detailed Lead Coach")
+st.caption("Guides you through one lead, collecting numbers and details step by step.")
 
 # ---------------------------------------------------------------------
 # Session state
 # ---------------------------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "lead_contexts" not in st.session_state:
-    st.session_state.lead_contexts = {}  # name -> full text history
-if "current_lead" not in st.session_state:
-    st.session_state.current_lead = None
+if "lead_info" not in st.session_state:
+    # structured info we collect along the way
+    st.session_state.lead_info = {
+        "name": None,
+        "segment": None,
+        "tenure_years": None,
+        "objective": None,
+        "current_bank_rate": None,
+        "current_bank_emi": None,
+        "our_offer_rate": None,
+        "surplus_monthly": None,
+        "savings_balance": None,
+        "travel_spend": None,
+        "pricing_concern": False,
+    }
 
 def add_message(role, content):
     st.session_state.messages.append({"role": role, "content": content})
@@ -31,158 +42,166 @@ for msg in st.session_state.messages:
 if not st.session_state.messages:
     intro = (
         "Good day. I am your Sales Call Preparation AI Agent.\n\n"
-        "Start with a greeting, then tell me who you are calling and what the call is about.\n"
-        "I will suggest the next questions to ask. When you type **summary** for that lead, "
-        "I will generate a short overall call summary."
+        "We will focus on **one customer** at a time. Start by telling me who you are calling "
+        "and what the call is broadly about. You can keep responses short and include numbers "
+        "where you have them (e.g., rate %, EMI amount, balances)."
     )
     add_message("assistant", intro)
     with st.chat_message("assistant"):
         st.markdown(intro)
 
 # ---------------------------------------------------------------------
-# Helper functions
+# Helper parsing functions
 # ---------------------------------------------------------------------
-def detect_type(text: str) -> str:
-    t = text.lower()
-    if any(w in t for w in ["home loan", "mortgage", "refinance", "emi"]):
-        return "refinance"
-    if any(w in t for w in ["working capital", "cash flow", "receivable", "invoice", "sme", "business"]):
-        return "sme_wc"
-    if any(w in t for w in ["fees", "pricing", "charges"]):
-        return "pricing"
-    return "generic"
-
 def extract_name(text: str) -> str | None:
-    # try "calling John Doe", "meeting with Sarah Lee", etc.
+    # e.g., "calling John Doe", "with John Doe"
     m = re.search(
-        r"\b(call(?:ing)?|speaking to|talking to|meeting with|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
-        text,
+        r"\b(call(?:ing)?|speaking to|talking to|meeting|meeting with|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
+        text
     )
-    return m.group(2) if m else None
+    if m:
+        return m.group(2)
+    return None
 
-def ensure_lead_context(name: str):
-    if name not in st.session_state.lead_contexts:
-        st.session_state.lead_contexts[name] = ""
+def extract_number(text: str) -> float | None:
+    # first float or int in the text
+    m = re.search(r"(\d+(\.\d+)?)", text)
+    if m:
+        try:
+            return float(m.group(1))
+        except ValueError:
+            return None
+    return None
 
-def append_to_lead_context(name: str, text: str):
-    ensure_lead_context(name)
-    prev = st.session_state.lead_contexts[name]
-    st.session_state.lead_contexts[name] = (prev + "\n" + text).strip()
+def detect_segment(text: str) -> str | None:
+    t = text.lower()
+    if any(w in t for w in ["sme", "business", "company", "msme"]):
+        return "SME / Business"
+    if any(w in t for w in ["affluent", "priority", "hni", "premier"]):
+        return "Affluent / Priority"
+    if "salaried" in t or "salary" in t:
+        return "Salaried Retail"
+    return None
+
+def detect_pricing_concern(text: str) -> bool:
+    t = text.lower()
+    return any(w in t for w in ["fees", "pricing", "charges", "rate", "expensive"])
+
+def update_lead_info_from_text(text: str):
+    info = st.session_state.lead_info
+    name = extract_name(text)
+    if name:
+        info["name"] = name
+
+    seg = detect_segment(text)
+    if seg and not info["segment"]:
+        info["segment"] = seg
+
+    if "year" in text.lower() and info["tenure_years"] is None:
+        n = extract_number(text)
+        if n:
+            info["tenure_years"] = n
+
+    if "objective" in text.lower() or "want to" in text.lower():
+        # basic objective capture
+        m = re.search(r"(objective.*|want to.*)", text, re.IGNORECASE)
+        if m:
+            info["objective"] = m.group(0)
+
+    if detect_pricing_concern(text):
+        info["pricing_concern"] = True
 
 # ---------------------------------------------------------------------
-# Short guidance: next questions
+# Build response with next questions + contextual hints
 # ---------------------------------------------------------------------
-def build_short_guidance(text: str, name: str) -> str:
-    lead_type = detect_type(text)
-    header = f"Here is how you can move the conversation with **{name}** forward:\n\n"
+def build_response(text: str) -> str:
+    info = st.session_state.lead_info
+    update_lead_info_from_text(text)
 
-    if lead_type == "refinance":
-        body = (
-            "**Key focus:** Home loan refinance and relationship deepening.\n\n"
-            "**Ask next:**\n"
-            "1. “What is most important for you in this refinance – lower EMI, faster payoff, or more flexibility?”\n"
-            "2. “What rate and fees has the other bank offered you so far?”\n"
-            "3. “Are there any upcoming expenses that will affect how much EMI you are comfortable with?”\n"
-            "4. “How much of your monthly surplus would you like to keep liquid versus in a high‑yield account?”\n"
-            "5. “Is there anything in your experience with us that you would like improved before you decide?”"
-        )
-    elif lead_type == "pricing":
-        body = (
-            "**Key focus:** Pricing and fee sensitivity.\n\n"
-            "**Ask next:**\n"
-            "1. “Which specific fees or charges feel unfair or unclear to you?”\n"
-            "2. “How are you comparing offers between banks – total cost over time, or mainly the headline rate?”\n"
-            "3. “If we simplify or reduce some fees, which ones would matter most to you?”\n"
-            "4. “Apart from pricing, what else will influence your decision to stay with us?”\n"
-            "5. “Would a one‑page comparison after this call help you decide comfortably?”"
-        )
-    elif lead_type == "sme_wc":
-        body = (
-            "**Key focus:** SME working capital and collections.\n\n"
-            "**Ask next:**\n"
-            "1. “For your newer customers, how many days on average do they take to pay you?”\n"
-            "2. “Where in the month do you usually feel the tightest cash‑flow gap?”\n"
-            "3. “Do you currently use early‑payment discounts or any collections tools?”\n"
-            "4. “What would a comfortable working‑capital limit look like for the next 12 months?”\n"
-            "5. “How do you prefer to review this – a simple cash‑flow view or example scenarios?”"
-        )
+    # Try to guess if this is refinance vs generic based on keywords
+    t = text.lower()
+    is_refi = any(w in t for w in ["refinance", "home loan", "mortgage"])
+    name = info["name"] or "the customer"
+
+    # see what we already know
+    missing = []
+    if info["tenure_years"] is None:
+        missing.append("tenure with the bank (in years)")
+    if info["objective"] is None:
+        missing.append("your objective for this call in one line")
+    if info["current_bank_rate"] is None and is_refi:
+        missing.append("current rate % and EMI at the other bank")
+    if info["our_offer_rate"] is None and is_refi:
+        missing.append("the rate % you expect to position from our side")
+    if info["savings_balance"] is None:
+        missing.append("current average savings balance")
+    if info["surplus_monthly"] is None:
+        missing.append("approximate monthly surplus after EMI and regular spends")
+    if info["travel_spend"] is None and "travel" in t:
+        missing.append("approximate monthly travel card spend")
+
+    # start building reply
+    reply_lines = []
+
+    reply_lines.append(f"Understood. We are preparing for a call with **{name}**.")
+    if is_refi:
+        reply_lines.append("This looks like a **home loan refinance** and relationship‑deepening discussion.")
     else:
-        body = (
-            "**Key focus:** Understanding needs and building trust.\n\n"
-            "**Ask next:**\n"
-            "1. “What would make this call most valuable for you today?”\n"
-            "2. “How satisfied are you with your current products and day‑to‑day experience with us?”\n"
-            "3. “Are there any upcoming events or large expenses you are planning for?”\n"
-            "4. “How do you prefer to communicate with us – RM, branch, app, WhatsApp, or a mix?”\n"
-            "5. “Is there anything that would make you consider moving part of your business to another bank?”"
-        )
+        reply_lines.append("This looks like a general relationship / needs discussion for this customer.")
 
-    return header + body
+    # If we have some numbers already, reflect them back
+    if info["tenure_years"]:
+        reply_lines.append(f"- Tenure with you: approximately **{info['tenure_years']:.0f} years**.")
+    if info["current_bank_rate"]:
+        reply_lines.append(f"- Current external rate: about **{info['current_bank_rate']:.2f}%**.")
+    if info["current_bank_emi"]:
+        reply_lines.append(f"- Current EMI: around **{info['current_bank_emi']:.0f}** per month.")
+    if info["our_offer_rate"]:
+        reply_lines.append(f"- Target rate you may position: around **{info['our_offer_rate']:.2f}%**.")
+    if info["savings_balance"]:
+        reply_lines.append(f"- Savings balance with you: roughly **{info['savings_balance']:.0f}**.")
+    if info["surplus_monthly"]:
+        reply_lines.append(f"- Monthly surplus estimated at **{info['surplus_monthly']:.0f}**.")
+    if info["travel_spend"]:
+        reply_lines.append(f"- Travel card spend: around **{info['travel_spend']:.0f} per month**.")
+    if info["pricing_concern"]:
+        reply_lines.append("- Pricing and fees are important to the customer.")
 
-# ---------------------------------------------------------------------
-# Summary: overall view for a lead
-# ---------------------------------------------------------------------
-def build_summary(name: str, ctx: str) -> str:
-    lead_type = detect_type(ctx)
-    t = ctx.lower()
+    reply_lines.append("")
+    reply_lines.append("**Questions you can ask next in this call:**")
 
-    themes = []
-    if any(w in t for w in ["refinance", "home loan", "mortgage"]):
-        themes.append("Home loan refinance is a primary topic.")
-    if any(w in t for w in ["high-yield", "high‑yield", "savings", "deposit", "surplus"]):
-        themes.append("There is surplus balance that could move into higher‑yield savings.")
-    if any(w in t for w in ["fees", "pricing", "charges"]):
-        themes.append("Pricing and fees are important in the decision.")
-    if any(w in t for w in ["working capital", "cash flow", "receivable", "invoice"]):
-        themes.append("Business cash‑flow and working‑capital requirements are key.")
-    if not themes:
-        themes.append("The call is mainly about understanding needs and keeping the relationship strong.")
-
-    risks = []
-    if any(w in t for w in ["unhappy", "complaint", "issue"]):
-        risks.append("There are service issues that must be acknowledged and resolved early.")
-    if any(w in t for w in ["comparing", "other bank"]):
-        risks.append("The customer is comparing other banks; clarity and transparency are critical.")
-    if "low engagement" in t or ("branch" in t and "digital" in t):
-        risks.append("Digital engagement appears low; there is an opportunity to simplify her routine tasks.")
-    if not risks:
-        risks.append("No explicit red flags mentioned, but start with a quick satisfaction check.")
-
-    opps = []
-    if lead_type == "refinance":
-        opps.append("Close the refinance with a clear rate and fee comparison.")
-        opps.append("Deepen balances using a high‑yield savings or short‑term deposit.")
-    elif lead_type == "sme_wc":
-        opps.append("Right‑size working‑capital limits to match receivable cycles.")
-        opps.append("Introduce simple collections and digital tools that reduce branch visits.")
+    if is_refi:
+        reply_lines.extend([
+            "1. “On your current home loan, what is the **exact rate and EMI** you are paying now?”",
+            "2. “If we could reach an EMI around a certain level, what would feel comfortable for your monthly budget?”",
+            "3. “Do you expect any **large expenses** in the next 6–12 months that might change how much EMI you can handle?”",
+            "4. “Each month, after EMI and usual spends, roughly how much **surplus** is left in your account?”",
+            "5. “Would you prefer to keep that surplus liquid, or move part of it into a **high‑yield savings or deposit**?”",
+        ])
     else:
-        opps.append("Identify one or two specific solutions that directly match the customer’s stated needs.")
+        reply_lines.extend([
+            "1. “What would you like to achieve from this conversation today in one line?”",
+            "2. “How satisfied are you with your current products and experience with us?”",
+            "3. “Are there any upcoming life events or large expenses you are planning for?”",
+            "4. “How do you usually manage your monthly cash‑flow and savings — roughly what stays as surplus?”",
+            "5. “How do you prefer to stay in touch — RM, branch, app, WhatsApp, or email?”",
+        ])
 
-    summary = f"""\
-**Lead summary – {name}**
+    if missing:
+        reply_lines.append("")
+        reply_lines.append("**To help me coach you better, please also share (short answers, with numbers where possible):**")
+        for item in missing[:5]:  # show up to 5 missing items
+            reply_lines.append(f"- {item}")
 
-**What this call is mainly about**
+    reply_lines.append("")
+    reply_lines.append("You can respond in short form, for example: `tenure 6 yrs, current rate 9.2, EMI 48k, savings 12L, surplus 40k`.")
 
-- """ + "\n- ".join(themes) + """
-
-**Key risks to keep in mind**
-
-- """ + "\n- ".join(risks) + """
-
-**Main opportunities**
-
-- """ + "\n- ".join(opps) + """
-
-**Suggested outcome for this call**
-
-- Agree on a clear decision or next step on the main topic, plus a simple follow‑up plan (who does what, and by when).
-"""
-    return summary
+    return "\n".join(reply_lines)
 
 # ---------------------------------------------------------------------
 # Chat input
 # ---------------------------------------------------------------------
-user_msg = st.chat_input("Say hello, describe the customer, or type 'summary' for the current lead...")
+user_msg = st.chat_input("Describe the customer, paste numbers, or ask for 'summary' when ready...")
 
 if user_msg:
     add_message("user", user_msg)
@@ -190,52 +209,84 @@ if user_msg:
         st.markdown(user_msg)
 
     lower = user_msg.strip().lower()
-    greeting_words = ("hi", "hello", "hey", "good morning", "good evening", "good afternoon")
 
-    # Detect or update current lead from message
-    detected_name = extract_name(user_msg)
-    if detected_name:
-        st.session_state.current_lead = detected_name
-    current_name = st.session_state.current_lead or "this customer"
-
-    # Save context for that lead
-    if st.session_state.current_lead:
-        append_to_lead_context(st.session_state.current_lead, user_msg)
-
-    # Greeting-only
-    if any(lower.startswith(g) for g in greeting_words) and len(lower.split()) <= 4:
-        response = (
-            "Hello. Please tell me who you are calling, what the call is about, "
-            "and what you would like to achieve. I will suggest the next questions to ask."
-        )
-        with st.chat_message("assistant"):
-            st.markdown(response)
-        add_message("assistant", response)
+    # Manual updates from shorthand numeric inputs
+    info = st.session_state.lead_info
+    if "tenure" in lower and info["tenure_years"] is None:
+        n = extract_number(user_msg)
+        if n:
+            info["tenure_years"] = n
+    if "current rate" in lower and info["current_bank_rate"] is None:
+        n = extract_number(user_msg)
+        if n:
+            info["current_bank_rate"] = n
+    if "emi" in lower and info["current_bank_emi"] is None:
+        n = extract_number(user_msg)
+        if n:
+            info["current_bank_emi"] = n
+    if "our rate" in lower and info["our_offer_rate"] is None:
+        n = extract_number(user_msg)
+        if n:
+            info["our_offer_rate"] = n
+    if "savings" in lower and info["savings_balance"] is None:
+        n = extract_number(user_msg)
+        if n:
+            info["savings_balance"] = n
+    if "surplus" in lower and info["surplus_monthly"] is None:
+        n = extract_number(user_msg)
+        if n:
+            info["surplus_monthly"] = n
+    if "travel" in lower and info["travel_spend"] is None:
+        n = extract_number(user_msg)
+        if n:
+            info["travel_spend"] = n
 
     # Summary request
-    elif "summary" in lower and st.session_state.current_lead:
-        ctx = st.session_state.lead_contexts.get(st.session_state.current_lead, "")
+    if "summary" in lower:
+        info = st.session_state.lead_info
+        name = info["name"] or "the customer"
         with st.chat_message("assistant"):
-            with st.spinner(f"Compiling a brief summary for {current_name}..."):
+            with st.spinner("Compiling a brief summary for this call..."):
                 time.sleep(1.0)
-                reply = build_summary(current_name, ctx)
+                parts = [f"**Call summary for {name}**\n"]
+                if info["tenure_years"]:
+                    parts.append(f"- Relationship tenure: **{info['tenure_years']:.0f} years**.")
+                if info["current_bank_rate"]:
+                    parts.append(
+                        f"- Current external home loan rate: **{info['current_bank_rate']:.2f}%**, "
+                        f"EMI ~ **{info['current_bank_emi'] or 0:.0f}**."
+                    )
+                if info["our_offer_rate"]:
+                    parts.append(f"- Target rate you plan to position: **{info['our_offer_rate']:.2f}%**.")
+                if info["savings_balance"]:
+                    parts.append(f"- Savings balance with you: around **{info['savings_balance']:.0f}**.")
+                if info["surplus_monthly"]:
+                    parts.append(f"- Estimated monthly surplus: **{info['surplus_monthly']:.0f}**.")
+                if info["travel_spend"]:
+                    parts.append(f"- Travel card spend: about **{info['travel_spend']:.0f} per month**.")
+                if info["pricing_concern"]:
+                    parts.append("- Customer is sensitive to pricing/fees and is likely comparing offers.")
+
+                parts.append("")
+                parts.append("**Suggested outcome for this call**")
+                parts.append(
+                    "- Agree on a refinance structure that improves EMI or rate meaningfully versus current terms."
+                )
+                parts.append(
+                    "- Agree how much surplus will move into high‑yield savings/deposits and how much remains liquid."
+                )
+                if info["travel_spend"]:
+                    parts.append("- Decide whether a travel‑optimized card upgrade makes sense now or in a later step.")
+                parts.append("- Confirm any follow‑up documents and the exact date/time of your next conversation.")
+
+                reply = "\n".join(parts)
             st.markdown(reply)
         add_message("assistant", reply)
 
-    # Normal guidance
     else:
         with st.chat_message("assistant"):
-            with st.spinner("Thinking about the best next questions..."):
+            with st.spinner("Thinking about the next questions and what we still need to know..."):
                 time.sleep(1.0)
-                reply = build_short_guidance(user_msg, current_name)
+                reply = build_response(user_msg)
             st.markdown(reply)
         add_message("assistant", reply)
-
-# Sidebar tips
-with st.sidebar:
-    st.subheader("How to use this")
-    st.markdown(
-        "- Mention the customer name to start a lead (e.g., “I am calling John Doe…”).\n"
-        "- Ask for guidance multiple times; the agent will suggest the next questions.\n"
-        "- When ready for a wrap‑up, type **summary** to get an overall view for that lead."
-    )
