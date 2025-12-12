@@ -1,3 +1,4 @@
+import time
 import streamlit as st
 
 st.set_page_config(page_title="Sales Call Prep – Chat Agent", layout="wide")
@@ -5,13 +6,9 @@ st.set_page_config(page_title="Sales Call Prep – Chat Agent", layout="wide")
 st.title("💬 Sales Call Preparation – Chat Agent")
 st.caption("Chat with the agent to prepare for your next customer conversation.")
 
-# Initialize chat history & state
+# Initialize chat history
 if "messages" not in st.session_state:
     st.session_state.messages = []
-if "context" not in st.session_state:
-    st.session_state.context = {}
-if "phase" not in st.session_state:
-    st.session_state.phase = "intro"  # intro -> gather -> briefing
 
 def add_message(role, content):
     st.session_state.messages.append({"role": role, "content": content})
@@ -22,15 +19,16 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # Initial assistant message
-if st.session_state.phase == "intro" and not st.session_state.messages:
+if not st.session_state.messages:
     intro = (
         "Hi, I'm your Sales Call Prep Agent.\n\n"
-        "Tell me about the customer and your upcoming call. "
-        "You can paste CRM notes or just describe the situation in your own words.\n\n"
-        "For example: segment, last interaction, any promises you made, recent behaviour, "
+        "Describe the customer and your upcoming call in your own words.\n"
+        "Mention segment, last interaction, any promises or issues, recent behaviour,\n"
         "and what you want to achieve in this call."
     )
     add_message("assistant", intro)
+    with st.chat_message("assistant"):
+        st.markdown(intro)
 
 def build_briefing(ctx_text: str) -> str:
     text = ctx_text.lower()
@@ -114,34 +112,24 @@ def build_briefing(ctx_text: str) -> str:
 user_msg = st.chat_input("Describe the customer and the upcoming call...")
 
 if user_msg:
-    # Add user message
+    # Show user message
     add_message("user", user_msg)
+    with st.chat_message("user"):
+        st.markdown(user_msg)
 
-    # Accumulate context (multi-turn)
-    existing = st.session_state.context.get("raw", "")
-    combined = (existing + "\n" + user_msg).strip()
-    st.session_state.context["raw"] = combined
+    # Simulate thinking with spinner + short delay
+    with st.chat_message("assistant"):
+        with st.spinner("Preparing your call briefing..."):
+            time.sleep(1.5)  # purely cosmetic delay
+            reply = build_briefing(user_msg)
+        st.markdown(reply)
+    add_message("assistant", reply)
 
-    # Move phase to briefing once we have enough context
-    if len(combined) < 40:
-        followup = (
-            "Got it. Can you share a bit more detail about:\n\n"
-            "- When you last interacted and through which channel?\n"
-            "- Any promises you made or issues raised?\n"
-            "- Any recent changes in balances, spends, or behaviour?"
-        )
-        add_message("assistant", followup)
-        st.session_state.phase = "gather"
-    else:
-        briefing = build_briefing(combined)
-        add_message("assistant", briefing)
-        st.session_state.phase = "briefing"
-
-# Optional: small sidebar hints
+# Sidebar help
 with st.sidebar:
     st.subheader("How to use this")
     st.markdown(
-        "- Paste CRM notes or type freely about the customer.\n"
-        "- You can send multiple messages; the agent will combine them.\n"
-        "- Once detailed enough, it generates a full call plan and note."
+        "- Type the customer and call context in your own words.\n"
+        "- Each message gets its own briefing.\n"
+        "- Start a fresh chat if you switch to a different customer."
     )
