@@ -32,10 +32,8 @@ if "lead" not in st.session_state:
         "big_goal": None,
     }
 
-
 def add_message(role, content):
     st.session_state.messages.append({"role": role, "content": content})
-
 
 # ---------------------------------------------------------------------
 # Display history
@@ -47,15 +45,12 @@ for msg in st.session_state.messages:
 # First message
 if not st.session_state.messages:
     intro = (
-        "Good day. I am your Sales Call Preparation AI Agent for US mortgage customers.\n\n"
-        "We will focus on **one refinance lead**. Start by telling me who you are calling "
-        "and that it is about refinancing their mortgage.\n\n"
-        "Then you can send short updates such as:\n"
-        "- `tenure 6 yrs, rate 9.5, pay 5200`\n"
-        "- `bal 320k, term 24 yrs`\n"
-        "- `dep 120k, surplus 4k, travel 2.5k`\n"
-        "- `offer 8.4, competitor 8.7, borrower worried about fees`\n\n"
-        "When you type **summary**, I will assemble everything into a concise call plan."
+        "Good day. This assistant helps you prepare for a **US mortgage refinance** call.\n\n"
+        "Tell me who you are calling and that it is a refi. Then, as you learn facts, "
+        "drop in short notes like:\n"
+        "`tenure 6 yrs, rate 9.5, pay 5200`, `bal 320k term 24 yrs`, "
+        "`dep 120k surplus 4k travel 2.5k`, `offer 8.4 competitor 8.7 fee sensitive`.\n\n"
+        "Type **summary** any time you want a concise call plan."
     )
     add_message("assistant", intro)
     with st.chat_message("assistant"):
@@ -74,14 +69,12 @@ def parse_us_number(token: str) -> float | None:
         val *= 1000.0
     return val
 
-
 def extract_name(text: str) -> str | None:
     m = re.search(
         r"\b(call(?:ing)?|speaking to|talking to|meeting|meeting with|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
         text,
     )
     return m.group(2) if m else None
-
 
 def detect_segment(text: str) -> str | None:
     t = text.lower()
@@ -94,7 +87,6 @@ def detect_segment(text: str) -> str | None:
     if "salary" in t or "w2" in t:
         return "Salaried"
     return None
-
 
 def update_lead_from_free_text(text: str):
     lead = st.session_state.lead
@@ -114,24 +106,21 @@ def update_lead_from_free_text(text: str):
     if any(w in low for w in ["refinance", "refi", "mortgage"]):
         if not lead["objective"]:
             lead["objective"] = "refinance existing mortgage and improve cash flow"
-    if any(w in low for w in ["fees", "pricing", "closing costs", "points", "worried about fees"]):
+    if any(w in low for w in ["fees", "pricing", "closing costs", "points", "fee conscious"]):
         lead["pricing_concern"] = True
-    if any(w in low for w in ["college", "education", "tuition", "daughter college"]):
+    if any(w in low for w in ["college", "education", "tuition", "daughter"]):
         lead["big_goal"] = "college / education funding"
-
 
 def parse_structured_short_input(text: str):
     lead = st.session_state.lead
     t = text.lower()
 
-    # tenure
     m = re.search(r"tenure\s+([0-9.,k]+)", t)
     if m:
         n = parse_us_number(m.group(1))
         if n:
             lead["tenure_years"] = n
 
-    # rate / pay (allow 'rate' or 'current rate')
     m = re.search(r"(current loan rate|current rate|rate)\s+([0-9.,k]+)", t)
     if m:
         r = parse_us_number(m.group(2))
@@ -143,10 +132,9 @@ def parse_structured_short_input(text: str):
         if p:
             lead["current_payment"] = p
 
-    # term / balance (allow 'bal' / 'balance')
-    m = re.search(r"(term)\s+([0-9.,k]+)", t)
+    m = re.search(r"term\s+([0-9.,k]+)", t)
     if m:
-        n = parse_us_number(m.group(2))
+        n = parse_us_number(m.group(1))
         if n:
             lead["remaining_term_years"] = n
     m = re.search(r"(bal|balance)\s+([0-9.,k]+)", t)
@@ -155,7 +143,6 @@ def parse_structured_short_input(text: str):
         if b:
             lead["remaining_balance"] = b
 
-    # deposits / surplus / travel (allow 'dep')
     m = re.search(r"(dep|savings)\s+([0-9.,k]+)", t)
     if m:
         b = parse_us_number(m.group(2))
@@ -172,7 +159,6 @@ def parse_structured_short_input(text: str):
         if tv:
             lead["travel_spend"] = tv
 
-    # our rate / competitor (allow 'offer')
     m = re.search(r"(our rate|offer)\s+([0-9.,k]+)", t)
     if m:
         r = parse_us_number(m.group(2))
@@ -184,6 +170,21 @@ def parse_structured_short_input(text: str):
         if r:
             lead["competitor_rate"] = r
 
+# ---------------------------------------------------------------------
+# Determine stage of conversation
+# ---------------------------------------------------------------------
+def infer_stage(lead) -> int:
+    # 1: basics missing, 2: basics present, working on comfort/surplus,
+    # 3: pricing/competitor, 4: goals, 5: closing / decision
+    if lead["current_rate"] is None or lead["current_payment"] is None or lead["remaining_balance"] is None:
+        return 1
+    if (lead["monthly_surplus"] is None or lead["savings_balance"] is None) and not lead["pricing_concern"]:
+        return 2
+    if lead["pricing_concern"] and (lead["our_rate"] is None or lead["competitor_rate"] is None):
+        return 3
+    if lead["big_goal"] is None:
+        return 4
+    return 5
 
 # ---------------------------------------------------------------------
 # Guidance builder
@@ -195,36 +196,71 @@ def build_guidance(text: str) -> str:
 
     name = lead["name"] or "the customer"
     state = f" in {lead['state']}" if lead["state"] else ""
+    stage = infer_stage(lead)
     lines: list[str] = []
 
-    # 1) Ask the customer now – driven by gaps
+    # 1) Ask now – stage‑driven
     lines.append(f"**Ask {name}{state} now:**")
 
-    if lead["remaining_balance"] is None:
-        lines.append("1. “Roughly how much do you still owe and how many years are left on the mortgage?”")
+    if stage == 1:
+        # Collect basics
+        if lead["remaining_balance"] is None:
+            lines.append("1. “About how much do you still owe and how many years are left on the mortgage?”")
+        else:
+            lines.append("1. “How long have you been in this mortgage with your current lender?”")
+        if lead["current_payment"] is None:
+            lines.append("2. “What is your current monthly mortgage payment (principal + interest)?”")
+        else:
+            lines.append("2. “Is that payment working for you today, or is it starting to feel tight?”")
+        if lead["current_rate"] is None:
+            lines.append("3. “Do you know your current interest rate, even roughly?”")
+        else:
+            lines.append("3. “Have you seen any other offers that beat your current rate?”")
+        lines.append("4. “How long do you see yourself staying in this home?”")
+        lines.append("5. “What made you start thinking about refinancing right now?”")
+
+    elif stage == 2:
+        # Comfort, surplus, goals
+        lines.append("1. “Does your current payment ever force you to cut back on other things in the month?”")
+        if lead["monthly_surplus"] is None:
+            lines.append("2. “After the mortgage and bills, about how much cash is usually left over each month?”")
+        else:
+            lines.append("2. “Out of that leftover cash, how much do you feel comfortable setting aside for savings?”")
+        if lead["savings_balance"] is None:
+            lines.append("3. “Roughly how much do you keep across checking and savings with us today?”")
+        else:
+            lines.append("3. “Do you like keeping most of that balance liquid, or would you consider setting some aside longer term?”")
+        lines.append("4. “If we could reduce your payment, would you rather free up cash or shorten the time to pay off the home?”")
+        lines.append("5. “Are there any large expenses coming up we should factor in?”")
+
+    elif stage == 3:
+        # Pricing / competitor detail
+        lines.append("1. “Which specific fees or closing costs are you most concerned about?”")
+        lines.append("2. “What has the other lender offered you so far in terms of rate and fees?”")
+        lines.append("3. “Over the next 5–7 years, what will you compare first – monthly payment, APR, or total cost?”")
+        lines.append("4. “Would you prefer lower cash to close or the lowest possible payment if we have to trade off?”")
+        lines.append("5. “If our offer clearly beats the other one, are you comfortable moving ahead with us?”")
+
+    elif stage == 4:
+        # Long‑term goals
+        lines.append("1. “What big goals do you have over the next 3–5 years – things like college, renovations, or other plans?”")
+        lines.append("2. “For that goal, do you value liquidity more, or are you open to locking some money away for better returns?”")
+        if lead["monthly_surplus"] is not None:
+            lines.append("3. “Out of what is left each month, how much would you be comfortable committing toward that goal?”")
+        else:
+            lines.append("3. “Do you have a sense of how much you could set aside monthly toward that goal?”")
+        lines.append("4. “Would a separate account or bucket for that goal help you stay on track?”")
+        lines.append("5. “How important is it that the refinance structure supports this goal explicitly?”")
+
     else:
-        lines.append("1. “Do you expect to stay in this home for most of the remaining term, or might you move sooner?”")
+        # Stage 5 – closing / decision
+        lines.append("1. “If the numbers look good, are you comfortable moving forward with the refinance today?”")
+        lines.append("2. “Is there anything that would stop you from saying yes if we meet your expectations on rate and fees?”")
+        lines.append("3. “How would you like to see the comparison – side‑by‑side with your current loan and the other offer?”")
+        lines.append("4. “Do you want to decide on any card or banking changes now, or keep that for a quick follow‑up?”")
+        lines.append("5. “What is the best way for me to send you the final numbers and next steps?”")
 
-    if lead["current_payment"] is None:
-        lines.append("2. “What is your current monthly mortgage payment (principal + interest)?”")
-    else:
-        lines.append("2. “Does that monthly payment feel comfortable, or does it strain your budget?”")
-
-    lines.append("3. “If we refinance, what would a comfortable monthly payment range look like for you?”")
-
-    if lead["monthly_surplus"] is None:
-        lines.append("4. “After the mortgage and other bills, about how much cash is left over each month?”")
-    else:
-        lines.append("4. “From that leftover cash, how much would you be comfortable directing toward savings or goals?”")
-
-    if lead["travel_spend"] is not None:
-        lines.append("5. “On your main credit card, do you care more about rewards, travel perks, or a lower annual fee?”")
-    elif lead["pricing_concern"]:
-        lines.append("5. “When you think about closing costs and fees, which items bother you the most?”")
-    else:
-        lines.append("5. “Besides the interest rate, what else will matter most in choosing who you refinance with?”")
-
-    # 2) Snapshot below
+    # 2) Snapshot
     lines.append("")
     lines.append(f"**Snapshot so far – {name}{state}:**")
     snapshot = []
@@ -253,24 +289,20 @@ def build_guidance(text: str) -> str:
         snapshot.append("- Long‑term goal: **college / education saving** in the next few years.")
 
     if not snapshot:
-        snapshot.append("- Key numbers not captured yet. Start with tenure, current rate, payment, and balances.")
+        snapshot.append("- Key numbers not captured yet.")
 
     lines.extend(snapshot)
 
-    # 3) Internal checklist (only what is still missing)
+    # 3) Minimal internal checklist
     need = []
-    if lead["tenure_years"] is None:
-        need.append("tenure with your bank (years).")
-    if lead["current_rate"] is None or lead["current_payment"] is None:
-        need.append("exact current rate and monthly payment.")
-    if lead["remaining_balance"] is None or lead["remaining_term_years"] is None:
-        need.append("approximate remaining balance and years left on the loan.")
+    if lead["current_rate"] is None or lead["current_payment"] is None or lead["remaining_balance"] is None:
+        need.append("basic loan details (rate, payment, remaining balance / term).")
     if lead["savings_balance"] is None or lead["monthly_surplus"] is None:
-        need.append("checking / savings balances and typical monthly surplus.")
-    if lead["our_rate"] is None:
-        need.append("the rate you expect to position on this call.")
-    if lead["pricing_concern"] and lead["competitor_rate"] is None:
-        need.append("any competitor rate the borrower has mentioned.")
+        need.append("deposits and typical monthly surplus.")
+    if lead["pricing_concern"] and (lead["our_rate"] is None or lead["competitor_rate"] is None):
+        need.append("your target rate and any competitor quote.")
+    if stage >= 4 and lead["big_goal"] is None:
+        need.append("any major goals (college, renovation, etc.).")
 
     if need:
         lines.append("")
@@ -279,10 +311,9 @@ def build_guidance(text: str) -> str:
             lines.append(f"- {n}")
 
     lines.append("")
-    lines.append("When you want the consolidated call plan, type **`summary`**.")
+    lines.append("Type `summary` any time for a consolidated call plan.")
 
     return "\n".join(lines)
-
 
 # ---------------------------------------------------------------------
 # Summary builder
@@ -335,12 +366,11 @@ def build_summary() -> str:
 
     return "\n".join(parts)
 
-
 # ---------------------------------------------------------------------
 # Chat input
 # ---------------------------------------------------------------------
 user_msg = st.chat_input(
-    "Short notes only: who/where, or things like 'tenure 6 yrs, rate 9.5, pay 5200', or type 'summary'..."
+    "Short notes only (e.g., 'John Doe TX refi', 'rate 9.5 pay 5200', 'bal 320k term 24 yrs', or 'summary')..."
 )
 
 if user_msg:
