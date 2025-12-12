@@ -29,7 +29,7 @@ if "lead" not in st.session_state:
         "monthly_surplus": None,
         "travel_spend": None,
         "pricing_concern": False,
-        "big_goal": None,  # e.g., college in 3 years
+        "big_goal": None,
     }
 
 
@@ -51,11 +51,10 @@ if not st.session_state.messages:
         "We will focus on **one refinance lead**. Start by telling me who you are calling "
         "and that it is about refinancing their mortgage.\n\n"
         "Then you can send short updates such as:\n"
-        "- `tenure 6 years`\n"
-        "- `current loan rate 9.5 payment 5200`\n"
-        "- `balance 320000 term 24 years`\n"
-        "- `balances savings 120000 surplus 4000 travel 2500`\n"
-        "- `our rate 8.5, competitor 8.75, fees are a concern`\n\n"
+        "- `tenure 6 yrs, rate 9.5, pay 5200`\n"
+        "- `bal 320k, term 24 yrs`\n"
+        "- `dep 120k, surplus 4k, travel 2.5k`\n"
+        "- `offer 8.4, competitor 8.7, borrower worried about fees`\n\n"
         "When you type **summary**, I will assemble everything into a concise call plan."
     )
     add_message("assistant", intro)
@@ -115,9 +114,9 @@ def update_lead_from_free_text(text: str):
     if any(w in low for w in ["refinance", "refi", "mortgage"]):
         if not lead["objective"]:
             lead["objective"] = "refinance existing mortgage and improve cash flow"
-    if any(w in low for w in ["fees", "pricing", "closing costs", "points"]):
+    if any(w in low for w in ["fees", "pricing", "closing costs", "points", "worried about fees"]):
         lead["pricing_concern"] = True
-    if any(w in low for w in ["college", "education", "tuition"]):
+    if any(w in low for w in ["college", "education", "tuition", "daughter college"]):
         lead["big_goal"] = "college / education funding"
 
 
@@ -125,37 +124,41 @@ def parse_structured_short_input(text: str):
     lead = st.session_state.lead
     t = text.lower()
 
+    # tenure
     m = re.search(r"tenure\s+([0-9.,k]+)", t)
     if m:
         n = parse_us_number(m.group(1))
         if n:
             lead["tenure_years"] = n
 
-    m = re.search(r"(current loan rate|current rate)\s+([0-9.,k]+)", t)
+    # rate / pay (allow 'rate' or 'current rate')
+    m = re.search(r"(current loan rate|current rate|rate)\s+([0-9.,k]+)", t)
     if m:
         r = parse_us_number(m.group(2))
         if r:
             lead["current_rate"] = r
-    m = re.search(r"payment\s+([0-9.,k]+)", t)
+    m = re.search(r"(payment|pay)\s+([0-9.,k]+)", t)
     if m:
-        p = parse_us_number(m.group(1))
+        p = parse_us_number(m.group(2))
         if p:
             lead["current_payment"] = p
 
-    m = re.search(r"term\s+([0-9.,k]+)\s*years?", t)
+    # term / balance (allow 'bal' / 'balance')
+    m = re.search(r"(term)\s+([0-9.,k]+)", t)
     if m:
-        n = parse_us_number(m.group(1))
+        n = parse_us_number(m.group(2))
         if n:
             lead["remaining_term_years"] = n
-    m = re.search(r"balance\s+([0-9.,k]+)", t)
+    m = re.search(r"(bal|balance)\s+([0-9.,k]+)", t)
     if m:
-        b = parse_us_number(m.group(1))
+        b = parse_us_number(m.group(2))
         if b:
             lead["remaining_balance"] = b
 
-    m = re.search(r"savings\s+([0-9.,k]+)", t)
+    # deposits / surplus / travel (allow 'dep')
+    m = re.search(r"(dep|savings)\s+([0-9.,k]+)", t)
     if m:
-        b = parse_us_number(m.group(1))
+        b = parse_us_number(m.group(2))
         if b:
             lead["savings_balance"] = b
     m = re.search(r"surplus\s+([0-9.,k]+)", t)
@@ -169,9 +172,10 @@ def parse_structured_short_input(text: str):
         if tv:
             lead["travel_spend"] = tv
 
-    m = re.search(r"our rate\s+([0-9.,k]+)", t)
+    # our rate / competitor (allow 'offer')
+    m = re.search(r"(our rate|offer)\s+([0-9.,k]+)", t)
     if m:
-        r = parse_us_number(m.group(1))
+        r = parse_us_number(m.group(2))
         if r:
             lead["our_rate"] = r
     m = re.search(r"competitor.*?([0-9.,k]+)", t)
@@ -193,60 +197,55 @@ def build_guidance(text: str) -> str:
     state = f" in {lead['state']}" if lead["state"] else ""
     lines: list[str] = []
 
-    # 1) Ask the borrower now – always on top
+    # 1) Ask the customer now – driven by gaps
     lines.append(f"**Ask {name}{state} now:**")
 
-    if not lead["remaining_balance"]:
-        lines.append("1. “About how much do you still **owe on the loan**, and how many years are left?”")
+    if lead["remaining_balance"] is None:
+        lines.append("1. “Roughly how much do you still owe and how many years are left on the mortgage?”")
     else:
-        lines.append("1. “Do you plan to **stay in this home** for most of the remaining term, or might you move sooner?”")
+        lines.append("1. “Do you expect to stay in this home for most of the remaining term, or might you move sooner?”")
 
-    if lead["current_payment"]:
-        lines.append("2. “Does your current monthly payment feel **comfortable**, or does it put pressure on your budget?”")
+    if lead["current_payment"] is None:
+        lines.append("2. “What is your current monthly mortgage payment (principal + interest)?”")
     else:
-        lines.append("2. “What is your **exact monthly mortgage payment** today (principal and interest)?”")
+        lines.append("2. “Does that monthly payment feel comfortable, or does it strain your budget?”")
 
-    lines.append("3. “If we refinance, what would a **comfortable payment range** look like for you each month?”")
+    lines.append("3. “If we refinance, what would a comfortable monthly payment range look like for you?”")
 
-    if lead["monthly_surplus"]:
-        lines.append(
-            "4. “From what is left over each month, how much would you be comfortable directing toward "
-            "**savings or goals**?”"
-        )
+    if lead["monthly_surplus"] is None:
+        lines.append("4. “After the mortgage and other bills, about how much cash is left over each month?”")
     else:
-        lines.append("4. “After mortgage and other bills, roughly how much **cash is left over** in a typical month?”")
+        lines.append("4. “From that leftover cash, how much would you be comfortable directing toward savings or goals?”")
 
-    if lead["travel_spend"]:
-        lines.append(
-            "5. “On your primary credit card, what matters more to you – **rewards, travel perks, or a lower annual fee**?”"
-        )
+    if lead["travel_spend"] is not None:
+        lines.append("5. “On your main credit card, do you care more about rewards, travel perks, or a lower annual fee?”")
     elif lead["pricing_concern"]:
-        lines.append("5. “When you think about **fees and closing costs**, which items concern you the most?”")
+        lines.append("5. “When you think about closing costs and fees, which items bother you the most?”")
     else:
-        lines.append("5. “Apart from the **interest rate**, what else will drive your decision on this refinance?”")
+        lines.append("5. “Besides the interest rate, what else will matter most in choosing who you refinance with?”")
 
-    # 2) Snapshot so far
+    # 2) Snapshot below
     lines.append("")
     lines.append(f"**Snapshot so far – {name}{state}:**")
     snapshot = []
-    if lead["tenure_years"]:
+    if lead["tenure_years"] is not None:
         snapshot.append(f"- Relationship: **{lead['tenure_years']:.0f} yrs** with your bank.")
-    if lead["current_rate"]:
+    if lead["current_rate"] is not None:
         pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured yet"
         snapshot.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
-    if lead["remaining_balance"]:
+    if lead["remaining_balance"] is not None:
         bal_txt = f"${lead['remaining_balance']:.0f}"
         yrs_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
         snapshot.append(f"- Remaining balance: **{bal_txt}**, {yrs_txt}.")
-    if lead["our_rate"]:
+    if lead["our_rate"] is not None:
         snapshot.append(f"- Rate you are considering: **{lead['our_rate']:.2f}%** (subject to approval).")
-    if lead["competitor_rate"]:
-        snapshot.append(f"- Competitor mentioned: around **{lead['competitor_rate']:.2f}%**.")
-    if lead["savings_balance"]:
+    if lead["competitor_rate"] is not None:
+        snapshot.append(f"- Competitor mentioned: ~**{lead['competitor_rate']:.2f}%**.")
+    if lead["savings_balance"] is not None:
         snapshot.append(f"- Deposits: ~**${lead['savings_balance']:.0f}** on deposit with you.")
-    if lead["monthly_surplus"]:
+    if lead["monthly_surplus"] is not None:
         snapshot.append(f"- Estimated monthly surplus: ~**${lead['monthly_surplus']:.0f}** after bills.")
-    if lead["travel_spend"]:
+    if lead["travel_spend"] is not None:
         snapshot.append(f"- Travel / card spend: ~**${lead['travel_spend']:.0f}/mo**.")
     if lead["pricing_concern"]:
         snapshot.append("- Customer is **rate‑ and fee‑sensitive**.")
@@ -258,7 +257,7 @@ def build_guidance(text: str) -> str:
 
     lines.extend(snapshot)
 
-    # 3) Internal checklist
+    # 3) Internal checklist (only what is still missing)
     need = []
     if lead["tenure_years"] is None:
         need.append("tenure with your bank (years).")
@@ -275,7 +274,7 @@ def build_guidance(text: str) -> str:
 
     if need:
         lines.append("")
-        lines.append("**Your internal checklist (capture these as you go):**")
+        lines.append("**Your internal checklist:**")
         for n in need:
             lines.append(f"- {n}")
 
@@ -296,25 +295,25 @@ def build_summary() -> str:
 
     parts.append(f"**Call summary – {name}{state}**\n")
 
-    if lead["tenure_years"]:
+    if lead["tenure_years"] is not None:
         parts.append(f"- Relationship with bank: **{lead['tenure_years']:.0f} years**.")
-    if lead["current_rate"]:
+    if lead["current_rate"] is not None:
         pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured"
         parts.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
-    if lead["remaining_balance"]:
+    if lead["remaining_balance"] is not None:
         term_txt = (
             f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
         )
         parts.append(f"- Remaining balance: **${lead['remaining_balance']:.0f}**, {term_txt}.")
-    if lead["our_rate"]:
+    if lead["our_rate"] is not None:
         parts.append(f"- Target rate to position: **{lead['our_rate']:.2f}%** (subject to underwriting).")
-    if lead["competitor_rate"]:
+    if lead["competitor_rate"] is not None:
         parts.append(f"- Competitor offer in discussion: ~**{lead['competitor_rate']:.2f}%**.")
-    if lead["savings_balance"]:
+    if lead["savings_balance"] is not None:
         parts.append(f"- Deposits with your bank: ~**${lead['savings_balance']:.0f}**.")
-    if lead["monthly_surplus"]:
+    if lead["monthly_surplus"] is not None:
         parts.append(f"- Estimated monthly surplus after bills: ~**${lead['monthly_surplus']:.0f}**.")
-    if lead["travel_spend"]:
+    if lead["travel_spend"] is not None:
         parts.append(f"- Travel / discretionary card spend: ~**${lead['travel_spend']:.0f}/mo**.")
     if lead["pricing_concern"]:
         parts.append("- Customer is **rate‑ and fee‑sensitive**; APR and closing costs will drive the decision.")
@@ -328,10 +327,8 @@ def build_summary() -> str:
     parts.append("- Confirm remaining term, remaining balance, and how long they expect to stay in the property.")
     parts.append("- Present a simple comparison: current loan vs your offer vs any competitor (payment, APR, cash to close).")
     parts.append("- Link refinance savings to their goals (monthly comfort and college savings plan).")
-    if lead["travel_spend"]:
-        parts.append(
-            "- Decide whether to align their travel spend with a more suitable rewards card now or at a follow‑up."
-        )
+    if lead["travel_spend"] is not None:
+        parts.append("- Decide whether to align their travel spend with a more suitable rewards card now or at a follow‑up.")
     parts.append(
         "- Close with clear next steps: documents needed, rate‑lock / timeline expectations, and how you will send final numbers."
     )
@@ -343,7 +340,7 @@ def build_summary() -> str:
 # Chat input
 # ---------------------------------------------------------------------
 user_msg = st.chat_input(
-    "Describe the customer, paste numbers, or type 'summary' for the call plan..."
+    "Short notes only: who/where, or things like 'tenure 6 yrs, rate 9.5, pay 5200', or type 'summary'..."
 )
 
 if user_msg:
