@@ -11,7 +11,6 @@ st.set_page_config(
 )
 
 LOGO_URL = "https://www.ylconsulting.com/wp-content/uploads/2024/11/logo.webp"
-st.logo(LOGO_URL, size="small", link="https://www.ylconsulting.com")
 
 # -----------------------------------------------------------------------------
 # Global styling
@@ -23,47 +22,40 @@ st.markdown(
         background-color: #f5f5f7;
     }
     .block-container {
-        padding-top: 0.5rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
+        padding-top: 2.2rem !important;  /* push content below Streamlit header */
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        max-width: 100% !important;
     }
 
-    /* Make logo a bit larger */
-    header [data-testid="stLogo"] img {
-        height: 32px !important;
-    }
-
-    /* Top container and bar */
+    /* Custom top bar that sits below Streamlit header */
     .top-shell {
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        background: #f5f5f7;
-        padding-bottom: 0.4rem;
-    }
-
-    .top-bar {
+        width: 100%;
         display: flex;
-        align-items: center;
-        justify-content: space-between;
-        border-radius: 999px;
-        padding: 0.4rem 0.8rem;
-        background: rgba(255,255,255,0.96);
-        box-shadow: 0 0 0 1px rgba(15,23,42,0.03), 0 8px 20px rgba(15,23,42,0.08);
-        backdrop-filter: blur(8px);
+        justify-content: center;
         margin-bottom: 0.5rem;
     }
-
-    .top-left {
+    .top-bar {
+        width: 72rem;
+        max-width: 96%;
         display: flex;
         align-items: center;
-        gap: 0.6rem;
-        font-size: 0.9rem;
-        color: #6b7280;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 0.4rem 1.2rem;
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 0 0 1px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.12);
+        backdrop-filter: blur(8px);
     }
-    .top-app-title-main {
+
+    .top-title {
+        font-size: 0.95rem;
         font-weight: 600;
         color: #111827;
+    }
+    .top-subtitle {
+        font-size: 0.86rem;
+        color: #6b7280;
     }
 
     .top-center {
@@ -71,85 +63,32 @@ st.markdown(
         align-items: center;
         justify-content: center;
         gap: 1.25rem;
-        flex: 1;
     }
-    .top-nav-item {
-        font-size: 0.9rem;
-        color: #6b7280;
-        cursor: pointer;
-        position: relative;
-        padding: 0.2rem 0.1rem;
-    }
-    .top-nav-item.active {
-        color: #111827;
-        font-weight: 600;
-    }
-    .top-nav-item.active::after {
-        content: "";
-        position: absolute;
-        left: 0;
-        right: 0;
-        bottom: -0.15rem;
-        height: 2px;
+    .top-nav-pill {
         border-radius: 999px;
-        background: linear-gradient(90deg, #2563eb, #38bdf8);
-    }
-
-    .top-right {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 0.6rem;
+        padding: 0.4rem 0.9rem;
         font-size: 0.9rem;
-    }
-
-    .pill-btn {
-        border-radius: 999px;
-        border: 1px solid #d1d5db;
-        background: #ffffff;
-        padding: 0.28rem 0.85rem;
-        font-size: 0.86rem;
         font-weight: 500;
         color: #111827;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-        white-space: nowrap;
-    }
-    .pill-btn-primary {
-        border-color: #2563eb;
-        background: #2563eb;
-        color: #ffffff;
-    }
-    .pill-btn-outline {
-        border-color: #2563eb;
         background: #eef2ff;
-        color: #2563eb;
+        border: 1px solid #2563eb;
     }
 
-    .bell-pill {
-        width: 34px;
-        height: 34px;
-        border-radius: 999px;
-        border: 1px solid #e5e7eb;
-        background: #ffffff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        font-size: 1.1rem;
-        color: #6b7280;
-    }
-
-    /* Sidebar */
+    /* Left rail (sidebar) */
     section[data-testid="stSidebar"] {
         background: #f9fafb;
         border-right: 1px solid #e5e7eb;
     }
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 1.1rem !important;
-        padding-left: 1.1rem !important;
-        padding-right: 1.1rem !important;
+        padding-top: 1.6rem !important;
+        padding-left: 1.2rem !important;
+        padding-right: 1.0rem !important;
+        max-width: 260px !important;
+    }
+
+    .yl-logo {
+        width: 84px;  /* 3x-ish compared to before */
+        margin-bottom: 1.6rem;
     }
 
     .nav-section-label {
@@ -163,21 +102,21 @@ st.markdown(
     .nav-item {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.55rem;
         padding: 0.45rem 0.7rem;
         border-radius: 999px;
         cursor: pointer;
         font-size: 0.9rem;
         color: #111827;
-        margin-bottom: 0.2rem;
+        margin-bottom: 0.25rem;
     }
     .nav-item:hover {
         background: #e5f0ff;
         color: #1d4ed8;
     }
     .nav-icon {
-        width: 24px;
-        height: 24px;
+        width: 26px;
+        height: 26px;
         border-radius: 999px;
         background: #e0edff;
         display: flex;
@@ -192,13 +131,19 @@ st.markdown(
         color: #9ca3af;
     }
 
-    /* Main chat card */
+    /* Main area */
+    .main-wrapper {
+        display: flex;
+        justify-content: center;
+    }
     .main-card {
         margin-top: 0.4rem;
         background: #ffffff;
         border-radius: 1.25rem;
         padding: 1.75rem 2.0rem 1.3rem 2.0rem;
         box-shadow: 0 12px 35px rgba(15,23,42,0.08);
+        width: 72rem;
+        max-width: 96%;
     }
 
     /* Chat input with attach + mic icons */
@@ -210,7 +155,6 @@ st.markdown(
         position: relative;
         padding-right: 4.5rem !important;
     }
-
     .input-icons-right {
         position: absolute;
         right: 1.0rem;
@@ -233,7 +177,7 @@ st.markdown(
         background: #f9fafb;
     }
 
-    /* Text size */
+    /* Typography for chat */
     div[data-testid="stMarkdown"] p {
         font-size: 0.95rem;
         line-height: 1.55;
@@ -244,51 +188,25 @@ st.markdown(
 )
 
 # -----------------------------------------------------------------------------
-# Top bar
+# Custom top bar (center, below Streamlit header)
 # -----------------------------------------------------------------------------
-st.markdown('<div class="top-shell">', unsafe_allow_html=True)
-with st.container():
-    col_l, col_c, col_r = st.columns([3, 4, 3])
-
-    with col_l:
-        st.markdown(
-            """
-            <div class="top-bar">
-              <div class="top-left">
-                <div>
-                  <div class="top-app-title-main">US Mortgage Coach</div>
-                  <div>Sales Call Preparation</div>
-                </div>
-              </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with col_c:
-        st.markdown(
-            """
-              <div class="top-center">
-                <div class="top-nav-item active">Guide</div>
-              </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-    with col_r:
-        c1, c2, c3 = st.columns([0.7, 1.2, 1.2])
-        with c1:
-            st.markdown('<div class="top-right">', unsafe_allow_html=True)
-            st.markdown('<div class="bell-pill">🔔</div>', unsafe_allow_html=True)
-        with c2:
-            start_new = st.button("Start new chat", key="start_new_top")
-        with c3:
-            my_acct = st.button("My Account", key="my_account_top")
-        st.markdown('</div></div>', unsafe_allow_html=True)
-
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('<div class="top-shell"><div class="top-bar">', unsafe_allow_html=True)
+st.markdown(
+    """
+    <div class="top-center">
+        <div>
+            <div class="top-title">US Mortgage Coach</div>
+            <div class="top-subtitle">Sales Call Preparation</div>
+        </div>
+        <div class="top-nav-pill">Guide</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+st.markdown('</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# Core state
+# Session state
 # -----------------------------------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -322,21 +240,29 @@ def reset_lead():
 if not st.session_state.lead:
     reset_lead()
 
-if start_new:
-    if st.session_state.messages:
-        first_user = next((m["content"] for m in st.session_state.messages if m["role"] == "user"), "New chat")
-        st.session_state.chat_history.insert(0, first_user[:48])
-    st.session_state.messages = []
-    st.session_state.asked_topics = set()
-    reset_lead()
-
 # -----------------------------------------------------------------------------
-# Sidebar
+# Sidebar = left rail (logo + new chat + bell + history + library + more)
 # -----------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown('<div class="nav-section-label">History</div>', unsafe_allow_html=True)
+    st.markdown(f'<img src="{LOGO_URL}" class="yl-logo"/>', unsafe_allow_html=True)
+
+    # New chat + bell like Perplexity
+    nc_col1, nc_col2 = st.columns([1, 1])
+    with nc_col1:
+        new_chat_clicked = st.button("＋ New chat", key="new_chat_sidebar")
+    with nc_col2:
+        st.markdown(
+            """
+            <div style="display:flex;align-items:center;justify-content:flex-end;">
+              <div class="nav-icon">🔔</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    st.markdown('<div style="margin-top:1.2rem;" class="nav-section-label">History</div>', unsafe_allow_html=True)
     if st.session_state.chat_history:
-        for idx, title in enumerate(st.session_state.chat_history[:12]):
+        for idx, title in enumerate(st.session_state.chat_history[:10]):
             st.markdown(
                 f"""
                 <div class="nav-item">
@@ -349,7 +275,7 @@ with st.sidebar:
     else:
         st.caption("No previous chats yet.")
 
-    st.markdown('<div style="margin-top:1rem;" class="nav-section-label">Library</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:1.2rem;" class="nav-section-label">Library</div>', unsafe_allow_html=True)
     st.markdown(
         """
         <div class="nav-item">
@@ -360,7 +286,7 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
-    st.markdown('<div style="margin-top:1rem;" class="nav-section-label">More</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:1.2rem;" class="nav-section-label">More</div>', unsafe_allow_html=True)
     st.markdown(
         """
         <div class="nav-item">
@@ -373,10 +299,19 @@ with st.sidebar:
 
     st.markdown('<div class="nav-footer">US Mortgage Coach – Internal RM Tool</div>', unsafe_allow_html=True)
 
+# New chat behaviour
+if new_chat_clicked:
+    if st.session_state.messages:
+        first_user = next((m["content"] for m in st.session_state.messages if m["role"] == "user"), "New chat")
+        st.session_state.chat_history.insert(0, first_user[:48])
+    st.session_state.messages = []
+    st.session_state.asked_topics = set()
+    reset_lead()
+
 # -----------------------------------------------------------------------------
 # Main card
 # -----------------------------------------------------------------------------
-st.markdown('<div class="main-card">', unsafe_allow_html=True)
+st.markdown('<div class="main-wrapper"><div class="main-card">', unsafe_allow_html=True)
 
 st.markdown("### 💬 Sales Call Preparation – US Mortgage Coach")
 st.caption("One refinance lead at a time. Short RM notes in, clear next questions out.")
@@ -405,7 +340,7 @@ if not st.session_state.messages:
         st.markdown(intro)
 
 # -----------------------------------------------------------------------------
-# Helper functions (unchanged logic)
+# Business logic helpers (same as before)
 # -----------------------------------------------------------------------------
 def parse_us_number(token: str) -> float | None:
     token = token.lower().replace(",", "").strip()
@@ -740,13 +675,12 @@ def build_summary() -> str:
     return "\n".join(parts)
 
 # -----------------------------------------------------------------------------
-# Chat input (with visual attach/mic)
+# Chat input (with visual attach/mic icons)
 # -----------------------------------------------------------------------------
 user_msg = st.chat_input(
     "Short notes only (e.g., 'Mary Smith CA refi', 'rate 7.8 pay 3100', 'bal 410k term 19 yrs', or 'summary')..."
 )
 
-# Draw attach + mic icons (visual)
 st.markdown(
     """
     <div class="input-icons-right">
@@ -778,4 +712,4 @@ if user_msg:
             st.markdown(reply)
         add_message("assistant", reply)
 
-st.markdown('</div>', unsafe_allow_html=True)
+st.markdown('</div></div>', unsafe_allow_html=True)
