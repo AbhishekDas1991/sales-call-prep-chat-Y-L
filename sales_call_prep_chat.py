@@ -10,19 +10,15 @@ st.set_page_config(
     layout="wide",
 )
 
-# Y&L logo (top‑left, also in sidebar)
 LOGO_URL = "https://www.ylconsulting.com/wp-content/uploads/2024/11/logo.webp"
-
-# Use official logo API so it appears in the extreme top‑left like a real app
 st.logo(LOGO_URL, size="small", link="https://www.ylconsulting.com")
 
 # -----------------------------------------------------------------------------
-# Global styling – closer to Perplexity look
+# Global styling
 # -----------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-    /* Overall app tone */
     body {
         background-color: #f5f5f7;
     }
@@ -32,7 +28,12 @@ st.markdown(
         padding-right: 1.5rem !important;
     }
 
-    /* Top bar container */
+    /* Make logo a bit larger */
+    header [data-testid="stLogo"] img {
+        height: 32px !important;
+    }
+
+    /* Top container and bar */
     .top-shell {
         position: sticky;
         top: 0;
@@ -46,8 +47,8 @@ st.markdown(
         align-items: center;
         justify-content: space-between;
         border-radius: 999px;
-        padding: 0.3rem 0.6rem;
-        background: rgba(255,255,255,0.9);
+        padding: 0.4rem 0.8rem;
+        background: rgba(255,255,255,0.96);
         box-shadow: 0 0 0 1px rgba(15,23,42,0.03), 0 8px 20px rgba(15,23,42,0.08);
         backdrop-filter: blur(8px);
         margin-bottom: 0.5rem;
@@ -56,41 +57,13 @@ st.markdown(
     .top-left {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
-    }
-
-    .top-app-title {
-        font-size: 0.92rem;
+        gap: 0.6rem;
+        font-size: 0.9rem;
         color: #6b7280;
     }
-
-    .pill-btn {
-        border-radius: 999px;
-        border: 1px solid #d1d5db;
-        background: #ffffff;
-        padding: 0.25rem 0.85rem;
-        font-size: 0.86rem;
-        font-weight: 500;
+    .top-app-title-main {
+        font-weight: 600;
         color: #111827;
-        display: inline-flex;
-        align-items: center;
-        gap: 0.35rem;
-    }
-
-    .pill-btn-primary {
-        border-color: #2563eb;
-        background: #2563eb;
-        color: #ffffff;
-    }
-
-    .pill-btn-outline {
-        border-color: #2563eb;
-        background: #eef2ff;
-        color: #2563eb;
-    }
-
-    .pill-btn span.icon {
-        font-size: 1rem;
     }
 
     .top-center {
@@ -100,7 +73,6 @@ st.markdown(
         gap: 1.25rem;
         flex: 1;
     }
-
     .top-nav-item {
         font-size: 0.9rem;
         color: #6b7280;
@@ -108,7 +80,6 @@ st.markdown(
         position: relative;
         padding: 0.2rem 0.1rem;
     }
-
     .top-nav-item.active {
         color: #111827;
         font-weight: 600;
@@ -127,81 +98,145 @@ st.markdown(
     .top-right {
         display: flex;
         align-items: center;
-        gap: 0.75rem;
         justify-content: flex-end;
+        gap: 0.6rem;
+        font-size: 0.9rem;
     }
 
-    /* Sidebar: slim, neutral like a nav rail */
+    .pill-btn {
+        border-radius: 999px;
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        padding: 0.28rem 0.85rem;
+        font-size: 0.86rem;
+        font-weight: 500;
+        color: #111827;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+    }
+    .pill-btn-primary {
+        border-color: #2563eb;
+        background: #2563eb;
+        color: #ffffff;
+    }
+    .pill-btn-outline {
+        border-color: #2563eb;
+        background: #eef2ff;
+        color: #2563eb;
+    }
+
+    .bell-pill {
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 1.1rem;
+        color: #6b7280;
+    }
+
+    /* Sidebar */
     section[data-testid="stSidebar"] {
         background: #f9fafb;
         border-right: 1px solid #e5e7eb;
     }
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 1rem !important;
-        padding-left: 0.9rem !important;
-        padding-right: 0.9rem !important;
+        padding-top: 1.1rem !important;
+        padding-left: 1.1rem !important;
+        padding-right: 1.1rem !important;
     }
 
     .nav-section-label {
-        font-size: 0.76rem;
+        font-size: 0.82rem;
         text-transform: uppercase;
         letter-spacing: 0.12em;
         color: #9ca3af;
-        margin-bottom: 0.35rem;
+        margin-bottom: 0.45rem;
     }
 
     .nav-item {
         display: flex;
         align-items: center;
-        gap: 0.4rem;
-        padding: 0.35rem 0.55rem;
+        gap: 0.5rem;
+        padding: 0.45rem 0.7rem;
         border-radius: 999px;
         cursor: pointer;
-        font-size: 0.86rem;
+        font-size: 0.9rem;
         color: #111827;
-        margin-bottom: 0.15rem;
+        margin-bottom: 0.2rem;
     }
     .nav-item:hover {
         background: #e5f0ff;
         color: #1d4ed8;
     }
     .nav-icon {
-        width: 22px;
-        height: 22px;
+        width: 24px;
+        height: 24px;
         border-radius: 999px;
         background: #e0edff;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 0.9rem;
+        font-size: 1rem;
         color: #2563eb;
     }
     .nav-footer {
-        margin-top: 1.5rem;
-        font-size: 0.78rem;
+        margin-top: 1.8rem;
+        font-size: 0.8rem;
         color: #9ca3af;
     }
 
-    /* Main chat panel to feel like a card on grey background */
+    /* Main chat card */
     .main-card {
         margin-top: 0.4rem;
         background: #ffffff;
         border-radius: 1.25rem;
-        padding: 1.75rem 2.0rem 1.2rem 2.0rem;
+        padding: 1.75rem 2.0rem 1.3rem 2.0rem;
         box-shadow: 0 12px 35px rgba(15,23,42,0.08);
     }
 
-    /* Chat input styling */
+    /* Chat input with attach + mic icons */
     div[data-testid="stChatInput"] > div {
         border-radius: 999px !important;
         border: 1px solid #e5e7eb !important;
         box-shadow: 0 6px 18px rgba(15,23,42,0.06);
         background: #ffffff;
+        position: relative;
+        padding-right: 4.5rem !important;
     }
 
-    /* Make assistant messages slightly card‑like */
-    div[data-testid="stChatMessage"] {
-        max-width: 900px;
+    .input-icons-right {
+        position: absolute;
+        right: 1.0rem;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: #6b7280;
+        font-size: 1.0rem;
+    }
+    .input-icon-circle {
+        width: 28px;
+        height: 28px;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f9fafb;
+    }
+
+    /* Text size */
+    div[data-testid="stMarkdown"] p {
+        font-size: 0.95rem;
+        line-height: 1.55;
     }
     </style>
     """,
@@ -209,42 +244,51 @@ st.markdown(
 )
 
 # -----------------------------------------------------------------------------
-# Top bar (logo already handled by st.logo)
+# Top bar
 # -----------------------------------------------------------------------------
 st.markdown('<div class="top-shell">', unsafe_allow_html=True)
-top_l, top_c, top_r = st.columns([3, 4, 3])
+with st.container():
+    col_l, col_c, col_r = st.columns([3, 4, 3])
 
-with top_l:
-    st.markdown(
-        """
-        <div class="top-left">
-            <div class="top-app-title">Sales Call Preparation</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with col_l:
+        st.markdown(
+            """
+            <div class="top-bar">
+              <div class="top-left">
+                <div>
+                  <div class="top-app-title-main">US Mortgage Coach</div>
+                  <div>Sales Call Preparation</div>
+                </div>
+              </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-with top_c:
-    st.markdown(
-        """
-        <div class="top-center">
-            <div class="top-nav-item active">Guide</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+    with col_c:
+        st.markdown(
+            """
+              <div class="top-center">
+                <div class="top-nav-item active">Guide</div>
+              </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
-with top_r:
-    c1, c2 = st.columns([1, 1])
-    with c1:
-        start_new = st.button("🔁  Start new chat", key="start_new_top")
-    with c2:
-        my_acct = st.button("My Account", key="my_account_top")
+    with col_r:
+        c1, c2, c3 = st.columns([0.7, 1.2, 1.2])
+        with c1:
+            st.markdown('<div class="top-right">', unsafe_allow_html=True)
+            st.markdown('<div class="bell-pill">🔔</div>', unsafe_allow_html=True)
+        with c2:
+            start_new = st.button("Start new chat", key="start_new_top")
+        with c3:
+            my_acct = st.button("My Account", key="my_account_top")
+        st.markdown('</div></div>', unsafe_allow_html=True)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# Core state (including simple history list)
+# Core state
 # -----------------------------------------------------------------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
@@ -278,7 +322,6 @@ def reset_lead():
 if not st.session_state.lead:
     reset_lead()
 
-# Start new chat behaviour
 if start_new:
     if st.session_state.messages:
         first_user = next((m["content"] for m in st.session_state.messages if m["role"] == "user"), "New chat")
@@ -288,7 +331,7 @@ if start_new:
     reset_lead()
 
 # -----------------------------------------------------------------------------
-# Sidebar – History, Library, More
+# Sidebar
 # -----------------------------------------------------------------------------
 with st.sidebar:
     st.markdown('<div class="nav-section-label">History</div>', unsafe_allow_html=True)
@@ -331,7 +374,7 @@ with st.sidebar:
     st.markdown('<div class="nav-footer">US Mortgage Coach – Internal RM Tool</div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
-# Main card container (title + chat)
+# Main card
 # -----------------------------------------------------------------------------
 st.markdown('<div class="main-card">', unsafe_allow_html=True)
 
@@ -343,12 +386,10 @@ RATE_FLOOR = 6.0  # percent
 def add_message(role, content):
     st.session_state.messages.append({"role": role, "content": content})
 
-# Render chat history
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-# First assistant message
 if not st.session_state.messages:
     intro = (
         "Good day. This assistant helps you prepare for a **US mortgage refinance** call.\n\n"
@@ -364,7 +405,7 @@ if not st.session_state.messages:
         st.markdown(intro)
 
 # -----------------------------------------------------------------------------
-# Original helper / domain functions (unchanged)
+# Helper functions (unchanged logic)
 # -----------------------------------------------------------------------------
 def parse_us_number(token: str) -> float | None:
     token = token.lower().replace(",", "").strip()
@@ -376,14 +417,12 @@ def parse_us_number(token: str) -> float | None:
         val *= 1000.0
     return val
 
-
 def extract_name(text: str) -> str | None:
     m = re.search(
         r"\b(call(?:ing)?|speaking to|talking to|meeting|meeting with|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)",
         text,
     )
     return m.group(2) if m else None
-
 
 def detect_segment(text: str) -> str | None:
     t = text.lower()
@@ -396,7 +435,6 @@ def detect_segment(text: str) -> str | None:
     if "salary" in t or "w2" in t:
         return "Salaried"
     return None
-
 
 def update_lead_from_free_text(text: str):
     lead = st.session_state.lead
@@ -421,7 +459,6 @@ def update_lead_from_free_text(text: str):
     if any(w in low for w in ["college", "education", "tuition", "daughter", "son"]):
         lead["big_goal"] = "college / education funding"
 
-
 def parse_structured_short_input(text: str):
     lead = st.session_state.lead
     t = text.lower()
@@ -437,6 +474,7 @@ def parse_structured_short_input(text: str):
         r = parse_us_number(m.group(2))
         if r:
             lead["current_rate"] = r
+
     m = re.search(r"(payment|pay)\s+([0-9.,k]+)", t)
     if m:
         p = parse_us_number(m.group(2))
@@ -448,6 +486,7 @@ def parse_structured_short_input(text: str):
         n = parse_us_number(m.group(1))
         if n:
             lead["remaining_term_years"] = n
+
     m = re.search(r"(bal|balance)\s+([0-9.,k]+)", t)
     if m:
         b = parse_us_number(m.group(2))
@@ -459,11 +498,13 @@ def parse_structured_short_input(text: str):
         b = parse_us_number(m.group(2))
         if b:
             lead["savings_balance"] = b
+
     m = re.search(r"surplus\s+([0-9.,k]+)", t)
     if m:
         s = parse_us_number(m.group(1))
         if s:
             lead["monthly_surplus"] = s
+
     m = re.search(r"travel\s+([0-9.,k]+)", t)
     if m:
         tv = parse_us_number(m.group(1))
@@ -475,12 +516,12 @@ def parse_structured_short_input(text: str):
         r = parse_us_number(m.group(2))
         if r:
             lead["our_rate"] = r
+
     m = re.search(r"competitor.*?([0-9.,k]+)", t)
     if m:
         r = parse_us_number(m.group(1))
         if r:
             lead["competitor_rate"] = r
-
 
 def infer_stage(lead) -> int:
     if lead["current_rate"] is None or lead["current_payment"] is None or lead["remaining_balance"] is None:
@@ -492,7 +533,6 @@ def infer_stage(lead) -> int:
     if lead["big_goal"] is None:
         return 4
     return 5
-
 
 def build_guidance(text: str) -> str:
     lead = st.session_state.lead
@@ -634,7 +674,6 @@ def build_guidance(text: str) -> str:
     lines.append("Type `summary` any time for a consolidated call plan.")
     return "\n".join(lines)
 
-
 def build_summary() -> str:
     lead = st.session_state.lead
     name = lead["name"] or "the customer"
@@ -700,12 +739,22 @@ def build_summary() -> str:
     parts.append("- Finish with a clear checklist of documents, rate‑lock expectations, and how/when you will send final numbers.")
     return "\n".join(parts)
 
-
 # -----------------------------------------------------------------------------
-# Chat input
+# Chat input (with visual attach/mic)
 # -----------------------------------------------------------------------------
 user_msg = st.chat_input(
     "Short notes only (e.g., 'Mary Smith CA refi', 'rate 7.8 pay 3100', 'bal 410k term 19 yrs', or 'summary')..."
+)
+
+# Draw attach + mic icons (visual)
+st.markdown(
+    """
+    <div class="input-icons-right">
+        <div class="input-icon-circle">📎</div>
+        <div class="input-icon-circle">🎤</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 if user_msg:
