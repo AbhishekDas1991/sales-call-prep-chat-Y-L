@@ -28,7 +28,7 @@ st.markdown(
         max-width: 100% !important;
     }
 
-    /* Custom top bar that sits below Streamlit header */
+    /* Custom top bar (centered, below Streamlit header) */
     .top-shell {
         width: 100%;
         display: flex;
@@ -57,7 +57,6 @@ st.markdown(
         font-size: 0.86rem;
         color: #6b7280;
     }
-
     .top-center {
         display: flex;
         align-items: center;
@@ -87,7 +86,7 @@ st.markdown(
     }
 
     .yl-logo {
-        width: 84px;  /* 3x-ish compared to before */
+        width: 84px;  /* ~3x compared to original small logo */
         margin-bottom: 1.6rem;
     }
 
@@ -146,29 +145,30 @@ st.markdown(
         max-width: 96%;
     }
 
-    /* Chat input with attach + mic icons */
+    /* Chat input with static attach + mic icons inside box */
     div[data-testid="stChatInput"] > div {
         border-radius: 999px !important;
         border: 1px solid #e5e7eb !important;
         box-shadow: 0 6px 18px rgba(15,23,42,0.06);
         background: #ffffff;
         position: relative;
-        padding-right: 4.5rem !important;
+        padding-right: 5.3rem !important;  /* leave room for icons */
     }
     .input-icons-right {
         position: absolute;
-        right: 1.0rem;
+        right: 0.9rem;
         top: 50%;
         transform: translateY(-50%);
         display: flex;
         align-items: center;
-        gap: 0.4rem;
+        gap: 0.35rem;
         color: #6b7280;
-        font-size: 1.0rem;
+        font-size: 0.95rem;
+        pointer-events: none;  /* purely visual */
     }
     .input-icon-circle {
-        width: 28px;
-        height: 28px;
+        width: 26px;
+        height: 26px;
         border-radius: 999px;
         border: 1px solid #e5e7eb;
         display: flex;
@@ -188,7 +188,7 @@ st.markdown(
 )
 
 # -----------------------------------------------------------------------------
-# Custom top bar (center, below Streamlit header)
+# Custom top bar (centered)
 # -----------------------------------------------------------------------------
 st.markdown('<div class="top-shell"><div class="top-bar">', unsafe_allow_html=True)
 st.markdown(
@@ -241,26 +241,25 @@ if not st.session_state.lead:
     reset_lead()
 
 # -----------------------------------------------------------------------------
-# Sidebar = left rail (logo + new chat + bell + history + library + more)
+# Sidebar (left rail)
 # -----------------------------------------------------------------------------
 with st.sidebar:
     st.markdown(f'<img src="{LOGO_URL}" class="yl-logo"/>', unsafe_allow_html=True)
 
-    # New chat + bell like Perplexity
-    nc_col1, nc_col2 = st.columns([1, 1])
-    with nc_col1:
-        new_chat_clicked = st.button("＋ New chat", key="new_chat_sidebar")
-    with nc_col2:
-        st.markdown(
-            """
-            <div style="display:flex;align-items:center;justify-content:flex-end;">
-              <div class="nav-icon">🔔</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    # New chat on one line
+    new_chat_clicked = st.button("＋ New chat", key="new_chat_sidebar")
 
-    st.markdown('<div style="margin-top:1.2rem;" class="nav-section-label">History</div>', unsafe_allow_html=True)
+    # Bell icon under new chat
+    st.markdown(
+        """
+        <div style="margin-top:0.6rem;margin-bottom:1.0rem;">
+          <div class="nav-icon">🔔</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.markdown('<div class="nav-section-label">History</div>', unsafe_allow_html=True)
     if st.session_state.chat_history:
         for idx, title in enumerate(st.session_state.chat_history[:10]):
             st.markdown(
@@ -340,10 +339,10 @@ if not st.session_state.messages:
         st.markdown(intro)
 
 # -----------------------------------------------------------------------------
-# Business logic helpers (same as before)
+# Helper functions (with improved rate parsing)
 # -----------------------------------------------------------------------------
 def parse_us_number(token: str) -> float | None:
-    token = token.lower().replace(",", "").strip()
+    token = token.lower().replace(",", "").replace("%", "").strip()
     m = re.match(r"(\d+(\.\d+)?)(k)?", token)
     if not m:
         return None
@@ -398,61 +397,79 @@ def parse_structured_short_input(text: str):
     lead = st.session_state.lead
     t = text.lower()
 
-    m = re.search(r"tenure\s+([0-9.,k]+)", t)
+    # tenure
+    m = re.search(r"tenure\s+([0-9.,k%]+)", t)
     if m:
         n = parse_us_number(m.group(1))
         if n:
             lead["tenure_years"] = n
 
-    m = re.search(r"(current loan rate|current rate|rate)\s+([0-9.,k]+)", t)
+    # rate with label
+    m = re.search(r"(current loan rate|current rate|rate)\s+([0-9.,k%]+)", t)
     if m:
         r = parse_us_number(m.group(2))
         if r:
             lead["current_rate"] = r
 
+    # bare percentage or number, if rate still missing
+    if lead["current_rate"] is None:
+        m = re.search(r"([0-9][0-9.,]*)\s*%?", t)
+        if m:
+            r = parse_us_number(m.group(1))
+            if r:
+                lead["current_rate"] = r
+
+    # payment
     m = re.search(r"(payment|pay)\s+([0-9.,k]+)", t)
     if m:
         p = parse_us_number(m.group(2))
         if p:
             lead["current_payment"] = p
 
+    # term
     m = re.search(r"term\s+([0-9.,k]+)", t)
     if m:
         n = parse_us_number(m.group(1))
         if n:
             lead["remaining_term_years"] = n
 
+    # balance
     m = re.search(r"(bal|balance)\s+([0-9.,k]+)", t)
     if m:
         b = parse_us_number(m.group(2))
         if b:
             lead["remaining_balance"] = b
 
+    # deposits
     m = re.search(r"(dep|savings)\s+([0-9.,k]+)", t)
     if m:
         b = parse_us_number(m.group(2))
         if b:
             lead["savings_balance"] = b
 
+    # surplus
     m = re.search(r"surplus\s+([0-9.,k]+)", t)
     if m:
         s = parse_us_number(m.group(1))
         if s:
             lead["monthly_surplus"] = s
 
+    # travel
     m = re.search(r"travel\s+([0-9.,k]+)", t)
     if m:
         tv = parse_us_number(m.group(1))
         if tv:
             lead["travel_spend"] = tv
 
-    m = re.search(r"(our rate|offer)\s+([0-9.,k]+)", t)
+    # our rate
+    m = re.search(r"(our rate|offer)\s+([0-9.,k%]+)", t)
     if m:
         r = parse_us_number(m.group(2))
         if r:
             lead["our_rate"] = r
 
-    m = re.search(r"competitor.*?([0-9.,k]+)", t)
+    # competitor
+    m = re.search(r"competitor.*?([0-9.,k%]+)", t)
     if m:
         r = parse_us_number(m.group(1))
         if r:
@@ -487,7 +504,7 @@ def build_guidance(text: str) -> str:
             all_questions.append(("balance_term", "About how much do you still owe and how many years are left on the mortgage?"))
         if "payment_amount" not in asked:
             all_questions.append(("payment_amount", "What is your current monthly mortgage payment (principal + interest)?"))
-        if "current_rate" not in asked:
+        if "current_rate_q" not in asked:
             all_questions.append(("current_rate_q", "Do you know your current interest rate, even roughly?"))
         if "stay_horizon" not in asked:
             all_questions.append(("stay_horizon", "How long do you see yourself staying in this home?"))
@@ -675,7 +692,7 @@ def build_summary() -> str:
     return "\n".join(parts)
 
 # -----------------------------------------------------------------------------
-# Chat input (with visual attach/mic icons)
+# Chat input (with static attach/mic icons inside box)
 # -----------------------------------------------------------------------------
 user_msg = st.chat_input(
     "Short notes only (e.g., 'Mary Smith CA refi', 'rate 7.8 pay 3100', 'bal 410k term 19 yrs', or 'summary')..."
