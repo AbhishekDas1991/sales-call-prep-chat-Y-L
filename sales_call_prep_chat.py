@@ -582,14 +582,14 @@ def build_guidance(text: str) -> str:
     if lead["tenure_years"] is not None:
         snapshot.append(f"- Relationship: **{lead['tenure_years']:.0f} yrs** with your bank.")
     if lead["current_rate"] is not None:
-        pay_txt = f\"${lead['current_payment']:.0f}/mo\" if lead["current_payment"] else "payment not captured yet"
+        pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured yet"
         snapshot.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
     if lead["remaining_balance"] is not None:
-        bal_txt = f\"${lead['remaining_balance']:.0f}\"
-        yrs_txt = f\"{lead['remaining_term_years']:.0f} yrs left\" if lead["remaining_term_years"] else "term not captured"
+        bal_txt = f"${lead['remaining_balance']:.0f}"
+        yrs_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
         snapshot.append(f"- Remaining balance: **{bal_txt}**, {yrs_txt}.")
     if lead["our_rate"] is not None:
-        rate_txt = f\"{lead['our_rate']:.2f}%\"
+        rate_txt = f"{lead['our_rate']:.2f}%"
         if lead["our_rate"] < RATE_FLOOR:
             snapshot.append(f"- :red[Working offer {rate_txt} is **below** floor {RATE_FLOOR:.2f}%. Do **not** go this low.]")
         else:
@@ -646,13 +646,13 @@ def build_summary() -> str:
     if lead["tenure_years"] is not None:
         parts.append(f"- Relationship: **{lead['tenure_years']:.0f} years** with your bank.")
     if lead["current_rate"] is not None:
-        pay_txt = f\"${lead['current_payment']:.0f}/mo\" if lead["current_payment"] else "payment not captured"
+        pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured"
         parts.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
     if lead["remaining_balance"] is not None:
-        term_txt = f\"{lead['remaining_term_years']:.0f} yrs left\" if lead["remaining_term_years"] else "term not captured"
+        term_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
         parts.append(f"- Remaining balance: **${lead['remaining_balance']:.0f}**, {term_txt}.")
     if lead["our_rate"] is not None:
-        txt = f\"{lead['our_rate']:.2f}%\"
+        txt = f"{lead['our_rate']:.2f}%"
         if lead["our_rate"] < RATE_FLOOR:
             parts.append(f"- :red[Offer {txt} is **below** internal floor **{RATE_FLOOR:.2f}%**. Adjust pricing upward before quoting.]")
         else:
@@ -699,6 +699,7 @@ def build_summary() -> str:
         parts.append("- Offer to review card options only after they are comfortable with the refinance numbers.")
     parts.append("- Finish with a clear checklist of documents, rate‑lock expectations, and how/when you will send final numbers.")
     return "\n".join(parts)
+
 
 # -----------------------------------------------------------------------------
 # Chat input
