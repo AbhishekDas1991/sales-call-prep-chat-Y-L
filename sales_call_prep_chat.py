@@ -22,13 +22,13 @@ st.markdown(
         background-color: #f5f5f7;
     }
     .block-container {
-        padding-top: 2.0rem !important;
+        padding-top: 2.2rem !important;  /* push content below Streamlit header */
         padding-left: 0 !important;
         padding-right: 0 !important;
         max-width: 100% !important;
     }
 
-    /* Top bar with only Guide pill */
+    /* Custom top bar (centered, below Streamlit header) */
     .top-shell {
         width: 100%;
         display: flex;
@@ -47,9 +47,25 @@ st.markdown(
         box-shadow: 0 0 0 1px rgba(15,23,42,0.04), 0 10px 28px rgba(15,23,42,0.12);
         backdrop-filter: blur(8px);
     }
+
+    .top-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #111827;
+    }
+    .top-subtitle {
+        font-size: 0.86rem;
+        color: #6b7280;
+    }
+    .top-center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+    }
     .top-nav-pill {
         border-radius: 999px;
-        padding: 0.4rem 1.1rem;
+        padding: 0.4rem 0.9rem;
         font-size: 0.9rem;
         font-weight: 500;
         color: #111827;
@@ -63,15 +79,15 @@ st.markdown(
         border-right: 1px solid #e5e7eb;
     }
     section[data-testid="stSidebar"] .block-container {
-        padding-top: 1.4rem !important;
+        padding-top: 1.6rem !important;
         padding-left: 1.2rem !important;
         padding-right: 1.0rem !important;
         max-width: 260px !important;
     }
 
     .yl-logo {
-        width: 84px;
-        margin-bottom: 1.4rem;
+        width: 84px;  /* ~3x compared to original small logo */
+        margin-bottom: 1.6rem;
     }
 
     .nav-section-label {
@@ -129,18 +145,18 @@ st.markdown(
         max-width: 96%;
     }
 
-    /* Chat input with static attach + mic icons inside */
+    /* Chat input with static attach + mic icons inside box */
     div[data-testid="stChatInput"] > div {
         border-radius: 999px !important;
         border: 1px solid #e5e7eb !important;
         box-shadow: 0 6px 18px rgba(15,23,42,0.06);
         background: #ffffff;
         position: relative;
-        padding-right: 6.0rem !important;  /* leave room for icons + send */
+        padding-right: 5.3rem !important;  /* leave room for icons */
     }
     .input-icons-right {
         position: absolute;
-        right: 3.4rem;  /* just to the left of Streamlit's send arrow */
+        right: 0.9rem;
         top: 50%;
         transform: translateY(-50%);
         display: flex;
@@ -148,7 +164,7 @@ st.markdown(
         gap: 0.35rem;
         color: #6b7280;
         font-size: 0.95rem;
-        pointer-events: none;  /* decorative only */
+        pointer-events: none;  /* purely visual */
     }
     .input-icon-circle {
         width: 26px;
@@ -172,10 +188,21 @@ st.markdown(
 )
 
 # -----------------------------------------------------------------------------
-# Top bar (Guide only)
+# Custom top bar (centered)
 # -----------------------------------------------------------------------------
 st.markdown('<div class="top-shell"><div class="top-bar">', unsafe_allow_html=True)
-st.markdown('<div class="top-nav-pill">Guide</div>', unsafe_allow_html=True)
+st.markdown(
+    """
+    <div class="top-center">
+        <div>
+            <div class="top-title">US Mortgage Coach</div>
+            <div class="top-subtitle">Sales Call Preparation</div>
+        </div>
+        <div class="top-nav-pill">Guide</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 st.markdown('</div></div>', unsafe_allow_html=True)
 
 # -----------------------------------------------------------------------------
@@ -219,8 +246,10 @@ if not st.session_state.lead:
 with st.sidebar:
     st.markdown(f'<img src="{LOGO_URL}" class="yl-logo"/>', unsafe_allow_html=True)
 
+    # New chat on one line
     new_chat_clicked = st.button("＋ New chat", key="new_chat_sidebar")
 
+    # Bell icon under new chat
     st.markdown(
         """
         <div style="margin-top:0.6rem;margin-bottom:1.0rem;">
@@ -269,6 +298,7 @@ with st.sidebar:
 
     st.markdown('<div class="nav-footer">US Mortgage Coach – Internal RM Tool</div>', unsafe_allow_html=True)
 
+# New chat behaviour
 if new_chat_clicked:
     if st.session_state.messages:
         first_user = next((m["content"] for m in st.session_state.messages if m["role"] == "user"), "New chat")
@@ -282,8 +312,7 @@ if new_chat_clicked:
 # -----------------------------------------------------------------------------
 st.markdown('<div class="main-wrapper"><div class="main-card">', unsafe_allow_html=True)
 
-# Heading WITHOUT chat icon
-st.markdown("### Sales Call Preparation – US Mortgage Coach")
+st.markdown("### 💬 Sales Call Preparation – US Mortgage Coach")
 st.caption("One refinance lead at a time. Short RM notes in, clear next questions out.")
 
 RATE_FLOOR = 6.0  # percent
@@ -310,7 +339,7 @@ if not st.session_state.messages:
         st.markdown(intro)
 
 # -----------------------------------------------------------------------------
-# Helper functions (same as your last working version, shortened for brevity)
+# Helper functions (with improved rate parsing)
 # -----------------------------------------------------------------------------
 def parse_us_number(token: str) -> float | None:
     token = token.lower().replace(",", "").replace("%", "").strip()
@@ -368,18 +397,21 @@ def parse_structured_short_input(text: str):
     lead = st.session_state.lead
     t = text.lower()
 
+    # tenure
     m = re.search(r"tenure\s+([0-9.,k%]+)", t)
     if m:
         n = parse_us_number(m.group(1))
         if n:
             lead["tenure_years"] = n
 
+    # rate with label
     m = re.search(r"(current loan rate|current rate|rate)\s+([0-9.,k%]+)", t)
     if m:
         r = parse_us_number(m.group(2))
         if r:
             lead["current_rate"] = r
 
+    # bare percentage or number, if rate still missing
     if lead["current_rate"] is None:
         m = re.search(r"([0-9][0-9.,]*)\s*%?", t)
         if m:
@@ -387,48 +419,56 @@ def parse_structured_short_input(text: str):
             if r:
                 lead["current_rate"] = r
 
+    # payment
     m = re.search(r"(payment|pay)\s+([0-9.,k]+)", t)
     if m:
         p = parse_us_number(m.group(2))
         if p:
             lead["current_payment"] = p
 
+    # term
     m = re.search(r"term\s+([0-9.,k]+)", t)
     if m:
         n = parse_us_number(m.group(1))
         if n:
             lead["remaining_term_years"] = n
 
+    # balance
     m = re.search(r"(bal|balance)\s+([0-9.,k]+)", t)
     if m:
         b = parse_us_number(m.group(2))
         if b:
             lead["remaining_balance"] = b
 
+    # deposits
     m = re.search(r"(dep|savings)\s+([0-9.,k]+)", t)
     if m:
         b = parse_us_number(m.group(2))
         if b:
             lead["savings_balance"] = b
 
+    # surplus
     m = re.search(r"surplus\s+([0-9.,k]+)", t)
     if m:
         s = parse_us_number(m.group(1))
         if s:
             lead["monthly_surplus"] = s
 
+    # travel
     m = re.search(r"travel\s+([0-9.,k]+)", t)
     if m:
         tv = parse_us_number(m.group(1))
         if tv:
             lead["travel_spend"] = tv
 
+    # our rate
     m = re.search(r"(our rate|offer)\s+([0-9.,k%]+)", t)
     if m:
         r = parse_us_number(m.group(2))
         if r:
             lead["our_rate"] = r
 
+    # competitor
     m = re.search(r"competitor.*?([0-9.,k%]+)", t)
     if m:
         r = parse_us_number(m.group(1))
@@ -530,18 +570,129 @@ def build_guidance(text: str) -> str:
 
     lines.append("")
     lines.append(f"**Snapshot so far – {name}{state}:**")
-    # (snapshot code unchanged – you can keep your previous version)
-    # ...
+    snapshot = []
+    if lead["tenure_years"] is not None:
+        snapshot.append(f"- Relationship: **{lead['tenure_years']:.0f} yrs** with your bank.")
+    if lead["current_rate"] is not None:
+        pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured yet"
+        snapshot.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
+    if lead["remaining_balance"] is not None:
+        bal_txt = f"${lead['remaining_balance']:.0f}"
+        yrs_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
+        snapshot.append(f"- Remaining balance: **{bal_txt}**, {yrs_txt}.")
+    if lead["our_rate"] is not None:
+        rate_txt = f"{lead['our_rate']:.2f}%"
+        if lead["our_rate"] < RATE_FLOOR:
+            snapshot.append(f"- :red[Working offer {rate_txt} is **below** floor {RATE_FLOOR:.2f}%. Do **not** go this low.]")
+        else:
+            snapshot.append(f"- Your working offer: **{rate_txt}** (subject to approval).")
+    else:
+        snapshot.append(f"- Pricing guardrail: :red[do not quote below **{RATE_FLOOR:.2f}%**].")
+    if lead["competitor_rate"] is not None:
+        snapshot.append(f"- Competitor mentioned: ~**{lead['competitor_rate']:.2f}%**.")
+    if lead["savings_balance"] is not None:
+        snapshot.append(f"- Deposits: ~**${lead['savings_balance']:.0f}** with your bank.")
+    if lead["monthly_surplus"] is not None:
+        snapshot.append(f"- Monthly surplus: ~**${lead['monthly_surplus']:.0f}** after bills.")
+    if lead["travel_spend"] is not None:
+        snapshot.append(f"- Travel / card spend: ~**${lead['travel_spend']:.0f}/mo**.")
+    if lead["pricing_concern"]:
+        snapshot.append("- Customer is **rate‑ and fee‑sensitive**.")
+    if lead["big_goal"]:
+        snapshot.append("- Long‑term goal discussed: **college / education in ~3–4 years**.")
 
-    # For brevity, you can paste your existing snapshot + checklist + footer here
-    # from the last working script.
+    if not snapshot:
+        snapshot.append("- Key numbers not captured yet.")
 
+    lines.extend(snapshot)
+
+    need = []
+    if lead["current_rate"] is None or lead["current_payment"] is None or lead["remaining_balance"] is None:
+        need.append("basic loan details (rate, payment, remaining balance / term).")
+    if lead["savings_balance"] is None or lead["monthly_surplus"] is None:
+        need.append("deposits and typical monthly surplus.")
+    if lead["pricing_concern"] and (lead["our_rate"] is None or lead["competitor_rate"] is None):
+        need.append("your working offer rate and any competitor quote.")
+    if lead["big_goal"] is None and infer_stage(lead) >= 3:
+        need.append("any major life goals (college, renovation, etc.).")
+
+    if need:
+        lines.append("")
+        lines.append("**Your internal checklist:**")
+        for n in need:
+            lines.append(f"- {n}")
+
+    lines.append("")
+    lines.append("Type `summary` any time for a consolidated call plan.")
     return "\n".join(lines)
 
-# (You can also paste your existing build_summary() here unchanged.)
+def build_summary() -> str:
+    lead = st.session_state.lead
+    name = lead["name"] or "the customer"
+    state = f" in {lead['state']}" if lead["state"] else ""
+    parts: list[str] = []
+
+    parts.append(f"**Call summary – {name}{state}**\n")
+
+    if lead["tenure_years"] is not None:
+        parts.append(f"- Relationship: **{lead['tenure_years']:.0f} years** with your bank.")
+    if lead["current_rate"] is not None:
+        pay_txt = f"${lead['current_payment']:.0f}/mo" if lead["current_payment"] else "payment not captured"
+        parts.append(f"- Current mortgage: **{lead['current_rate']:.2f}%**, {pay_txt}.")
+    if lead["remaining_balance"] is not None:
+        term_txt = f"{lead['remaining_term_years']:.0f} yrs left" if lead["remaining_term_years"] else "term not captured"
+        parts.append(f"- Remaining balance: **${lead['remaining_balance']:.0f}**, {term_txt}.")
+    if lead["our_rate"] is not None:
+        txt = f"{lead['our_rate']:.2f}%"
+        if lead["our_rate"] < RATE_FLOOR:
+            parts.append(f"- :red[Offer {txt} is **below** internal floor **{RATE_FLOOR:.2f}%**. Adjust pricing upward before quoting.]")
+        else:
+            parts.append(f"- Working offer: **{txt}** (subject to underwriting).")
+    else:
+        parts.append(f"- Pricing guardrail: :red[do not go below **{RATE_FLOOR:.2f}%** on rate.]")
+    if lead["competitor_rate"] is not None:
+        parts.append(f"- Competitor in play: ~**{lead['competitor_rate']:.2f}%**.")
+    if lead["savings_balance"] is not None:
+        parts.append(f"- Deposits: around **${lead['savings_balance']:.0f}** on your books.")
+    if lead["monthly_surplus"] is not None:
+        parts.append(f"- Monthly surplus: roughly **${lead['monthly_surplus']:.0f}** after bills.")
+    if lead["travel_spend"] is not None:
+        parts.append(f"- Card / travel spend: about **${lead['travel_spend']:.0f} per month**.")
+    if lead["pricing_concern"]:
+        parts.append("- Borrower is strongly **price‑ and fee‑sensitive**; structure and cash to close matter.")
+    if lead["big_goal"]:
+        parts.append("- Stated goal: **college / education saving in the next few years**, wants liquidity with some growth.")
+    if lead["objective"]:
+        parts.append(f"- Your internal goal: **{lead['objective']}**.")
+
+    parts.append("")
+    parts.append("**Key insights**")
+    if lead["current_rate"] and lead["our_rate"] and lead["our_rate"] >= RATE_FLOOR:
+        rate_delta = lead["current_rate"] - lead["our_rate"]
+        if rate_delta > 0:
+            parts.append(
+                f"- You have roughly a **{rate_delta:.2f}% rate improvement** above floor {RATE_FLOOR:.2f}%. "
+                "Focus on what that does to payment and interest over the first 5–7 years."
+            )
+    if lead["monthly_surplus"]:
+        parts.append("- Surplus each month allows you to propose an automatic transfer into a goal bucket without stressing cash flow.")
+    if lead["pricing_concern"]:
+        parts.append("- A transparent fee breakdown and breakeven view will matter more than chasing tiny extra rate cuts.")
+    if lead["travel_spend"]:
+        parts.append("- Card spend is large enough that a targeted rewards card can be a natural follow‑up once the refi is agreed.")
+
+    parts.append("")
+    parts.append("**How to steer the call**")
+    parts.append("- Confirm remaining term, stay‑in‑home horizon, and payment comfort one more time.")
+    parts.append("- Present side‑by‑side: today vs your offer vs competitor (payment, APR, cash to close, breakeven years).")
+    parts.append("- Tie savings from the refi to a specific monthly amount into their college or remodel fund.")
+    if lead["travel_spend"] is not None:
+        parts.append("- Offer to review card options only after they are comfortable with the refinance numbers.")
+    parts.append("- Finish with a clear checklist of documents, rate‑lock expectations, and how/when you will send final numbers.")
+    return "\n".join(parts)
 
 # -----------------------------------------------------------------------------
-# Chat input with static attach/mic icons
+# Chat input (with static attach/mic icons inside box)
 # -----------------------------------------------------------------------------
 user_msg = st.chat_input(
     "Short notes only (e.g., 'Mary Smith CA refi', 'rate 7.8 pay 3100', 'bal 410k term 19 yrs', or 'summary')..."
@@ -564,11 +715,17 @@ if user_msg:
 
     lower = user_msg.strip().lower()
     if "summary" in lower:
-        # call your existing build_summary() here
-        pass
-    else:
-        reply = build_guidance(user_msg)
         with st.chat_message("assistant"):
+            with st.spinner("Preparing a concise call plan..."):
+                time.sleep(1.0)
+                reply = build_summary()
+            st.markdown(reply)
+        add_message("assistant", reply)
+    else:
+        with st.chat_message("assistant"):
+            with st.spinner("Reviewing details and shaping next questions..."):
+                time.sleep(1.0)
+                reply = build_guidance(user_msg)
             st.markdown(reply)
         add_message("assistant", reply)
 
